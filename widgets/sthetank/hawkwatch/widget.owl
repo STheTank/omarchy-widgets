@@ -6,7 +6,6 @@ widget "hawkwatch" {
     category: "sport"
     owl: 17
   }
-  requires { pacman: ["python"] }
 
   size: 6x4
   minSize: 3x3
@@ -15,34 +14,12 @@ widget "hawkwatch" {
   source scoreboard = http("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard") every 1m json timeout 20s
   source schedule = http("https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/sea/schedule") every 10m json timeout 20s
   source standings = http("https://site.api.espn.com/apis/v2/sports/football/nfl/standings") every 30m json timeout 20s
-  source news = cmd("""
-python3 - <<'PY'
-import urllib.request, xml.etree.ElementTree as ET, json
-try:
-    req = urllib.request.Request("https://www.seahawks.com/rss/news", headers={"User-Agent": "omalauncher/1.0"})
-    with urllib.request.urlopen(req, timeout=10) as r:
-        root = ET.fromstring(r.read())
-    items = []
-    for item in root.findall("./channel/item")[:15]:
-        t = (item.findtext("title") or "").strip()
-        l = (item.findtext("link") or "").strip()
-        d = (item.findtext("description") or "").strip()
-        p = (item.findtext("pubDate") or "").strip()
-        if t and l:
-            items.append({"title": t, "link": l, "desc": d, "pub": p})
-    print(json.dumps(items))
-except Exception:
-    print("[]")
-PY
-""") every 10m json timeout 25s
+  source rss = http("https://www.seahawks.com/rss/news") every 10m timeout 20s
 
   state tab = "score"
   state screenTab = "game"
 
   let seaGreen = #69be28
-  let seaNavy = #002244
-  let seaCard = #0b182b
-  let seaGrey = #a5acaf
 
   let teamInfo = schedule.team ?? {}
   let recordStr = teamInfo.recordSummary ?? "–"
@@ -127,7 +104,7 @@ PY
   let pgOppName = pgOpp.team.shortDisplayName ?? pgOpp.team.displayName ?? pgOppAbbr
   let pgResult = "${pgWon ? 'W' : 'L'} ${pgSeaScore}-${pgOppScore} ${pgIsHome ? 'vs' : '@'} ${pgOppAbbr}"
 
-  let articles = news ?? []
+  let articles = take(matchAll(rss ?? "", "<item>[\\s\\S]*?<title>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</title>[\\s\\S]*?<description>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</description>[\\s\\S]*?<link>([^<]+)</link>[\\s\\S]*?<pubDate>([^<]+)</pubDate>").map(m => ({title: trim(m[0]), desc: trim(m[1]), link: trim(m[2]), pub: trim(m[3])})), 15)
 
   component TeamLogo(abbr, px = 20) {
     let a = lower(abbr ?? '')
@@ -181,10 +158,10 @@ PY
           text: "● LIVE"
           style: small
           bold: true
-          color: foreground
+          color: red
           padding: [5, 2]
           radius: 4
-          background: #ef4444
+          background: alpha(red, 0.2)
         }
       } else {
         Text { text: "⤢"; style: body; color: muted; onTap: { haptic(); screen() } }
@@ -274,7 +251,7 @@ PY
           fill: width
           padding: [8, 6]
           radius: 8 * corners
-          background: alpha(seaCard, 0.8)
+          background: alpha(surface, 0.6)
           border: 1
           borderColor: fgIsLive ? seaGreen : border
 
@@ -392,10 +369,10 @@ PY
                     text: "RED ZONE"
                     style: label
                     bold: true
-                    color: #ef4444
+                    color: red
                     padding: [4, 1]
                     radius: 3
-                    background: alpha(#ef4444, 0.2)
+                    background: alpha(red, 0.2)
                   }
                 }
               }
@@ -411,7 +388,7 @@ PY
             fill: width
             padding: [6, 4]
             radius: 6 * corners
-            background: alpha(surface, 0.4)
+            background: alpha(surface, 0.6)
             border: 1
             borderColor: border
 
@@ -446,7 +423,7 @@ PY
           fill: width
           padding: [6, 4]
           radius: 6 * corners
-          background: alpha(seaCard, 0.5)
+          background: alpha(surface, 0.6)
           border: 1
           borderColor: border
           onTap: { haptic(); tab = "standings" }
@@ -493,7 +470,7 @@ PY
           fill: width
           padding: 8
           radius: 8 * corners
-          background: alpha(seaCard, 0.7)
+          background: alpha(surface, 0.6)
           border: 1
           borderColor: border
 
@@ -698,7 +675,7 @@ PY
         fill: width
         padding: 14
         radius: 12 * corners
-        background: alpha(seaNavy, 0.9)
+        background: alpha(surface, 0.6)
         border: 1
         borderColor: seaGreen
 
@@ -793,7 +770,7 @@ PY
             fill: width
             padding: 14
             radius: 10 * corners
-            background: alpha(seaCard, 0.7)
+            background: alpha(surface, 0.6)
             border: 1
             borderColor: fgIsLive ? seaGreen : border
 
@@ -952,7 +929,7 @@ PY
             fill: width
             padding: 10
             radius: 8 * corners
-            background: alpha(seaCard, 0.6)
+            background: alpha(surface, 0.6)
             border: 1
             borderColor: border
 
@@ -1039,7 +1016,7 @@ PY
               fill: width
               padding: 10
               radius: 8 * corners
-              background: alpha(surface, 0.3)
+              background: alpha(surface, 0.6)
               border: 1
               borderColor: border
               onTap: { haptic(); url("https://www.espn.com/nfl/game/_/gameId/${prevGame.id}") }
@@ -1090,7 +1067,7 @@ PY
                 fill: width
                 padding: 10
                 radius: 8 * corners
-                background: alpha(seaCard, 0.5)
+                background: alpha(surface, 0.6)
                 border: 1
                 borderColor: border
                 onTap: { haptic(); url(item.link) }
@@ -1163,7 +1140,7 @@ PY
               fill: width
               padding: [8, 6]
               radius: 6 * corners
-              background: isCurrent ? alpha(seaGreen, 0.15) : (gState == 'in' ? alpha(seaGreen, 0.15) : alpha(surface, 0.25))
+              background: isCurrent ? alpha(seaGreen, 0.15) : (gState == 'in' ? alpha(seaGreen, 0.15) : alpha(surface, 0.6))
               border: 1
               borderColor: (isCurrent || gState == 'in') ? seaGreen : border
 
@@ -1207,10 +1184,10 @@ PY
                     text: "LIVE"
                     style: small
                     bold: true
-                    color: foreground
+                    color: seaGreen
                     padding: [6, 2]
                     radius: 4
-                    background: seaGreen
+                    background: alpha(seaGreen, 0.2)
                   }
                 } else {
                   Text {
