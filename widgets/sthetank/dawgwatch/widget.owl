@@ -15,9 +15,13 @@ widget "dawgwatch" {
   source schedule = http("https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/264/schedule") every 10m json timeout 20s
   source standings = http("https://site.api.espn.com/apis/v2/sports/football/college-football/standings?group=5") every 30m json timeout 20s
   source newsFeed = http("https://site.api.espn.com/apis/site/v2/sports/football/college-football/news?team=264") every 15m json timeout 20s
+  source uwNews = http("https://gohuskies.com/api/v2/stories?sportId=3") every 15m json timeout 20s
+  source foxRss = http("https://api.foxsports.com/v2/content/optimized-rss?partnerKey=MB0Wehpmuj2lUhuRhQaafhBjAJqaPU244mlTDK1i&size=15&tags=washington-huskies") every 15m timeout 20s
+  source b1gRss = http("https://bigten.org/rss.aspx?path=football") every 15m timeout 20s
 
   state tab = "score"
   state screenTab = "game"
+  state newsFilter = "all"
 
   let uwPurple = mix(#4b2e83, foreground, 0.55)
   let uwGold = mix(#c5a45c, foreground, 0.25)
@@ -118,7 +122,58 @@ widget "dawgwatch" {
   let pgOppAbbr = pgOpp.team.abbreviation ?? ''
   let pgResult = "${pgWon ? 'W' : 'L'} ${pgUwScore}-${pgOppScore} ${pgIsHome ? 'vs' : '@'} ${pgOppAbbr}"
 
-  let articles = newsFeed.articles ?? []
+  let uwItems = (uwNews.items ?? []).map(s => ({
+    id: "uw-${s.contentId}",
+    src: "GoHuskies",
+    title: replace(trim(s.contentTitle ?? ""), "&amp;", "&"),
+    desc: replace(trim(join(matchAll(s.teaser ?? "", "(?:^|>)([^<]+)").map(m => m[0]), "")), "&amp;", "&"),
+    link: startsWith(s.contentUrl ?? "", "http") ? s.contentUrl : "https://gohuskies.com${s.contentUrl ?? ''}",
+    ts: parseTime(s.contentDate, null, "America/Los_Angeles")
+  }))
+
+  let espnItems = (newsFeed.articles ?? []).map(a => ({
+    id: "espn-${a.id}",
+    src: "ESPN",
+    title: trim(a.headline ?? ""),
+    desc: trim(a.description ?? ""),
+    link: a.links.web.href ?? "https://www.espn.com/college-football/team/_/id/264/washington-huskies",
+    ts: parseTime(a.published)
+  }))
+
+  let foxItems = matchAll(foxRss ?? "", "<item>[\\s\\S]*?<title>\\s*(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?\\s*</title>[\\s\\S]*?<link>\\s*([^<]+?)\\s*</link>[\\s\\S]*?<category>([^<]+)</category>[\\s\\S]*?<description>\\s*(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?\\s*</description>[\\s\\S]*?<pubDate>\\s*([^<]+?)\\s*</pubDate>")
+    .filter(m => trim(m[2]) == "college-football")
+    .map(m => ({
+      id: "fox-${trim(m[1])}",
+      src: "Fox Sports",
+      title: replace(trim(m[0]), "&amp;", "&"),
+      desc: replace(trim(m[3]), "&amp;", "&"),
+      link: trim(m[1]),
+      ts: parseTime(trim(m[4]))
+    }))
+
+  let b1gItems = matchAll(b1gRss ?? "", "<item>[\\s\\S]*?<title>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</title>[\\s\\S]*?<link>([^<]+)</link>[\\s\\S]*?<description>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</description>[\\s\\S]*?<pubDate>([^<]+)</pubDate>")
+    .map(m => ({
+      id: "b1g-${trim(m[1])}",
+      src: "Big Ten",
+      title: replace(trim(m[0]), "&amp;", "&"),
+      desc: replace(trim(join(matchAll(m[2], "(?:^|>)([^<]+)").map(x => x[0]), "")), "&amp;", "&"),
+      link: trim(m[1]),
+      ts: parseTime(trim(m[3]))
+    }))
+
+  let allArticles = flatten([uwItems, espnItems, foxItems, b1gItems])
+    .filter(a => a.title != "" && a.link != "")
+    .sortBy(a => -(a.ts ?? 0))
+
+  let newsSources = [
+    {id: "all", label: "All"},
+    {id: "GoHuskies", label: "GoHuskies"},
+    {id: "ESPN", label: "ESPN"},
+    {id: "Fox Sports", label: "Fox"},
+    {id: "Big Ten", label: "Big Ten"}
+  ]
+
+  let articles = newsFilter == "all" ? allArticles : allArticles.filter(a => a.src == newsFilter)
 
   component TeamLogo(id, px = 20) {
     let tid = str(id ?? '')
@@ -568,44 +623,71 @@ widget "dawgwatch" {
       }
 
       if tab == "news" {
-        if len(articles) == 0 {
-          Text { text: "Loading Huskies news…"; style: small; color: muted; align: center }
-        } else {
-          for item in articles.take(5) key item.id {
-            let articleUrl = item.links.web.href ?? "https://www.espn.com/college-football/team/_/id/264/washington-huskies"
-            Box {
-              fill: width
-              padding: [6, 4]
-              radius: 6 * corners
-              onTap: { haptic(); url(articleUrl) }
-
-              Row {
-                fill: width
-                gap: 6
-                align: top
-                Box {
-                  width: 4
-                  height: 14
-                  radius: 2
-                  background: uwGold
-                  offset: [0, 3]
+        Column {
+          gap: 4
+          fill: width
+          Row {
+            fill: width
+            gap: 4
+            for f in newsSources key f.id {
+              let active = newsFilter == f.id
+              Box {
+                weight: 1
+                padding: [3, 4]
+                radius: 6 * corners
+                background: active ? alpha(uwPurple, 0.22) : alpha(surface, 0.4)
+                border: 1
+                borderColor: active ? uwPurple : border
+                onTap: { haptic(); newsFilter = f.id }
+                Text {
+                  text: f.label
+                  style: label
+                  bold: active
+                  color: active ? uwPurple : muted
+                  align: center
+                  maxLines: 1
                 }
-                Column {
-                  gap: 2
-                  weight: 1
-                  Text {
-                    text: item.headline
-                    style: small
-                    bold: true
-                    maxLines: 2
+              }
+            }
+          }
+
+          if len(articles) == 0 {
+            Text { text: "Loading Huskies news…"; style: small; color: muted; align: center }
+          } else {
+            for item in articles.take(6) key item.id {
+              Box {
+                fill: width
+                padding: [6, 4]
+                radius: 6 * corners
+                onTap: { haptic(); url(item.link) }
+
+                Row {
+                  fill: width
+                  gap: 6
+                  align: top
+                  Box {
+                    width: 4
+                    height: 14
+                    radius: 2
+                    background: uwGold
+                    offset: [0, 3]
                   }
-                  Row {
-                    gap: 6
-                    let pt = parseTime(item.published)
-                    if pt != null {
-                      Text { text: fmtAgo(pt, now); style: label; color: uwPurple; bold: true }
+                  Column {
+                    gap: 2
+                    weight: 1
+                    Text {
+                      text: item.title
+                      style: small
+                      bold: true
+                      maxLines: 2
                     }
-                    Text { text: item.byline ?? "ESPN CFB"; style: label; color: muted; maxLines: 1 }
+                    Row {
+                      gap: 6
+                      if item.ts > 0 {
+                        Text { text: fmtAgo(item.ts, now); style: label; color: uwPurple; bold: true }
+                      }
+                      Text { text: item.src; style: label; color: muted; maxLines: 1 }
+                    }
                   }
                 }
               }
@@ -1085,11 +1167,35 @@ widget "dawgwatch" {
 
           Text { text: "LATEST WASHINGTON HUSKIES NEWS"; style: label; color: muted }
 
+          Row {
+            fill: width
+            gap: 6
+            for f in newsSources key f.id {
+              let active = newsFilter == f.id
+              Box {
+                weight: 1
+                padding: [4, 6]
+                radius: 8 * corners
+                background: active ? alpha(uwPurple, 0.22) : alpha(surface, 0.4)
+                border: 1
+                borderColor: active ? uwPurple : border
+                onTap: { haptic(); newsFilter = f.id }
+                Text {
+                  text: f.label
+                  style: label
+                  bold: active
+                  color: active ? uwPurple : muted
+                  align: center
+                  maxLines: 1
+                }
+              }
+            }
+          }
+
           if len(articles) == 0 {
             Text { text: "Fetching Huskies football news…"; style: small; color: muted }
           } else {
-            for item in articles key item.id {
-              let articleUrl = item.links.web.href ?? "https://www.espn.com/college-football/team/_/id/264/washington-huskies"
+            for item in articles.take(20) key item.id {
               Box {
                 fill: width
                 padding: 10
@@ -1097,7 +1203,7 @@ widget "dawgwatch" {
                 background: alpha(surface, 0.6)
                 border: 1
                 borderColor: border
-                onTap: { haptic(); url(articleUrl) }
+                onTap: { haptic(); url(item.link) }
 
                 Column {
                   gap: 4
@@ -1106,23 +1212,22 @@ widget "dawgwatch" {
                   Row {
                     gap: 6
                     align: center
-                    let pt = parseTime(item.published)
-                    if pt != null {
-                      Text { text: fmtAgo(pt, now); style: label; color: uwPurple; bold: true }
+                    if item.ts > 0 {
+                      Text { text: fmtAgo(item.ts, now); style: label; color: uwPurple; bold: true }
                       Text { text: "•"; style: label; color: muted }
                     }
-                    Text { text: item.byline ?? "ESPN CFB"; style: label; color: muted }
+                    Text { text: item.src; style: label; color: muted }
                   }
 
                   Text {
-                    text: item.headline
+                    text: item.title
                     style: body
                     bold: true
                   }
 
-                  if (item.description ?? "") != "" {
+                  if (item.desc ?? "") != "" {
                     Text {
-                      text: item.description
+                      text: item.desc
                       style: small
                       color: muted
                       maxLines: 3
