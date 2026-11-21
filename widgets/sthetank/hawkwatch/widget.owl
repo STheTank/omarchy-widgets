@@ -22,6 +22,7 @@ widget "hawkwatch" {
   state tab = "score"
   state screenTab = "game"
   state newsFilter = "all"
+  state lastLiveProb = null
 
   let seaGreen = #69be28
 
@@ -100,10 +101,12 @@ widget "hawkwatch" {
 
   // Live & pregame betting odds + ESPN win probability
   let fgId = featuredGame.id != null ? str(featuredGame.id) : ""
-  source gameOdds = http(fgId != "" ? "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/${enc(fgId)}/competitions/${enc(fgId)}/odds" : null) every 30s json timeout 15s status
-  source gamePredictor = http(fgId != "" ? "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/${enc(fgId)}/competitions/${enc(fgId)}/predictor" : null) every 10m json timeout 15s status
-  source liveProb = http(fgIsLive && fgId != "" ? "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/${enc(fgId)}/competitions/${enc(fgId)}/probabilities?limit=300" : null) every 30s json timeout 15s status
+  let espnCore = "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl"
+  source liveOdds = http(fgIsLive && fgId != "" ? "${espnCore}/events/${enc(fgId)}/competitions/${enc(fgId)}/odds" : null) every 30s json timeout 15s status
+  source preOdds = http(!fgIsLive && fgId != "" ? "${espnCore}/events/${enc(fgId)}/competitions/${enc(fgId)}/odds" : null) every 15m json timeout 15s status
+  source gamePredictor = http(!fgIsFinal && fgId != "" ? "${espnCore}/events/${enc(fgId)}/competitions/${enc(fgId)}/predictor" : null) every 30m json timeout 15s status
 
+  let gameOdds = fgIsLive ? (liveOdds ?? preOdds) : preOdds
   let oddsItems = (gameOdds != null && gameOdds.ok ? gameOdds.out.items : null) ?? []
   let liveOddsItem = oddsItems.find(o => str(o.provider.id ?? "") == "200" || contains(lower(o.provider.name ?? ""), "live"))
   let preOddsItem = oddsItems.find(o => str(o.provider.id ?? "") == "100") ?? oddsItems.find(o => str(o.provider.id ?? "") != "200")
@@ -141,10 +144,15 @@ widget "hawkwatch" {
   let openRef = openSpreadStr != "" && openTotalStr != "" ? "${openSpreadStr} • ${openTotalStr}" : (openSpreadStr != "" ? openSpreadStr : openTotalStr)
   let oddsRefLabel = hasLiveOdds && preCloseRef != "" ? "Pregame Close: ${preCloseRef}" : (!hasLiveOdds && openRef != "" ? "Open: ${openRef}" : "")
 
-  let liveProbItems = (fgIsLive && liveProb != null && liveProb.ok ? liveProb.out.items : null) ?? []
-  let liveProbLast = last(liveProbItems)
-  let liveAwayProbRaw = liveProbLast.awayWinPercentage ?? fgSit.lastPlay.probability.awayWinPercentage
-  let liveHomeProbRaw = liveProbLast.homeWinPercentage ?? fgSit.lastPlay.probability.homeWinPercentage
+  let sbLiveAwayProb = fgSit.lastPlay.probability.awayWinPercentage
+  let sbLiveHomeProb = fgSit.lastPlay.probability.homeWinPercentage
+  let sbLiveProbPair = fgIsLive && fgId != "" && sbLiveAwayProb != null && sbLiveHomeProb != null ? {id: fgId, away: sbLiveAwayProb, home: sbLiveHomeProb} : null
+  on sbLiveProbPair first {
+    if value != null { lastLiveProb = value }
+  }
+  let cachedLiveProb = fgIsLive && lastLiveProb != null && lastLiveProb.id == fgId ? lastLiveProb : null
+  let liveAwayProbRaw = sbLiveAwayProb ?? cachedLiveProb.away
+  let liveHomeProbRaw = sbLiveHomeProb ?? cachedLiveProb.home
   let hasLiveProb = fgIsLive && liveAwayProbRaw != null && liveHomeProbRaw != null
 
   let predData = gamePredictor != null && gamePredictor.ok ? gamePredictor.out : null
