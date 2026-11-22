@@ -4,7 +4,7 @@ widget "hawkwatch" {
     version: "1.3"
     license: "MIT"
     category: "sport"
-    owl: 17
+    owl: 19
   }
 
   size: 6x4
@@ -12,6 +12,7 @@ widget "hawkwatch" {
   padding: [10, 8]
 
   source now = clock every 1m
+  source modes = android.modes
   source scoreboard = http("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard") every 1m json timeout 20s
   source schedule = http("https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/sea/schedule") every 10m json timeout 20s
   source standings = http("https://site.api.espn.com/apis/v2/sports/football/nfl/standings") every 30m json timeout 20s
@@ -26,6 +27,7 @@ widget "hawkwatch" {
   state lastLiveProb = null
 
   let seaGreen = #69be28
+  let winGreen = #4ade80
 
   let teamInfo = schedule.team ?? {}
   let recordStr = teamInfo.recordSummary ?? "–"
@@ -137,7 +139,7 @@ widget "hawkwatch" {
   let oddsMlCompact = oddsAwayMl != "" && oddsHomeMl != "" ? "${fgAwayAbbr} ${oddsAwayMl} / ${fgHomeAbbr} ${oddsHomeMl}" : (oddsAwayMl != "" ? "${fgAwayAbbr} ${oddsAwayMl}" : (oddsHomeMl != "" ? "${fgHomeAbbr} ${oddsHomeMl}" : ""))
 
   let oddsSpreadHeadline = oddsDetails != "" ? oddsDetails : (oddsHomeSpread != "" ? "${fgHomeAbbr} ${oddsHomeSpread}" : "")
-  let oddsBadgeText = hasLiveOdds ? "● LIVE" : (fgIsFinal || fgIsLive ? "START" : "ODDS")
+  let oddsBadgeText = hasLiveOdds ? "● LIVE" : (fgIsFinal || fgIsLive ? "CLOSE" : "ODDS")
 
   let preCloseDetails = preOddsItem.details ?? ""
   let preCloseOu = preOddsItem.overUnder != null ? "O/U ${preOddsItem.overUnder}" : ""
@@ -275,17 +277,23 @@ widget "hawkwatch" {
   let tabPadY = int(clamp(3 + extraSpace * 0.04, 3, 6))
   let stripPadY = int(clamp(3 + extraSpace * 0.04, 3, 6))
   let barH = scoreSpare >= 64 ? 4 : 3
-  let baseLogoPx = isCompactTile ? 22 : int(clamp(scoreSpare * 0.64, 22, 44))
-  let winBonus = int(clamp(round(baseLogoPx * 0.28), 6, 12))
-  let winLogoPx = int(min(54, baseLogoPx + winBonus))
-  let loseLogoPx = int(max(18, baseLogoPx - 4))
+  let baseLogoPx = isCompactTile ? 24 : int(clamp(scoreSpare * 0.72, 26, 40))
+  let winLogoPx = int(clamp(round(baseLogoPx * 1.12), 28, 40))
+  let loseLogoPx = int(max(18, round(baseLogoPx * 0.76)))
   let fgHasWinner = fgIsFinal && (fgAway.winner == true || fgHome.winner == true)
-  let awayLogoPx = fgHasWinner ? (fgAway.winner == true ? winLogoPx : loseLogoPx) : baseLogoPx
-  let homeLogoPx = fgHasWinner ? (fgHome.winner == true ? winLogoPx : loseLogoPx) : baseLogoPx
-  let logoSlotH = fgHasWinner ? winLogoPx : baseLogoPx
-  let screenAwayLogoPx = fgHasWinner ? (fgAway.winner == true ? 68 : 48) : 56
-  let screenHomeLogoPx = fgHasWinner ? (fgHome.winner == true ? 68 : 48) : 56
-  let screenLogoSlotH = fgHasWinner ? 68 : 56
+  let awayIsWinner = fgHasWinner && fgAway.winner == true
+  let homeIsWinner = fgHasWinner && fgHome.winner == true
+  let seaWonFeatured = fgHasWinner && fgSea.winner == true
+  let awayLogoPx = fgHasWinner ? (awayIsWinner ? winLogoPx : loseLogoPx) : baseLogoPx
+  let homeLogoPx = fgHasWinner ? (homeIsWinner ? winLogoPx : loseLogoPx) : baseLogoPx
+  let auraW = fgHasWinner ? min(int(tw * 0.26), int(round(winLogoPx * 2.65))) : int(round(baseLogoPx * 1.32))
+  let logoSlotH = fgHasWinner ? int(round(winLogoPx * 1.44)) : baseLogoPx
+  let screenAwayLogoPx = fgHasWinner ? (awayIsWinner ? 52 : 42) : 50
+  let screenHomeLogoPx = fgHasWinner ? (homeIsWinner ? 52 : 42) : 50
+  let screenAuraW = fgHasWinner ? 114 : 70
+  let screenLogoSlotH = fgHasWinner ? 86 : 54
+  let expandBtnSz = int(clamp(min(tw, th) * 0.095, 22, 32))
+  let expandIconSz = int(clamp(round(expandBtnSz * 0.56), 13, 18))
   let scoreFontSize = int(clamp(20 + extraSpace * 0.08, 20, 28))
   let centerColW = int(clamp(tw * 0.30, 86, 130))
   let seaStandingsEntry = nfcWest.find(e => e.team.abbreviation == 'SEA')
@@ -324,14 +332,133 @@ widget "hawkwatch" {
     }
   }
 
-  component TeamLogo(abbr, px = 20) {
+  component TeamLogo(abbr, px = 20, plate = false) {
     let a = lower(abbr ?? '')
     let code = a == 't' ? 'ten' : a
+    let w = int(round(px * 1.32))
     if a != '' && a != 'opp' {
-      Image {
-        src: "https://a.espncdn.com/i/teamlogos/nfl/500/${code}.png"
-        size: px
-        fit: contain
+      if plate {
+        let boxW = px <= 20 ? w : w + 4
+        let boxH = px <= 20 ? px : px + 4
+        let imgW = px <= 20 ? max(14, w - 2) : w
+        let imgH = px <= 20 ? max(12, px - 2) : px
+        Box {
+          width: boxW
+          height: boxH
+          radius: boxH / 2
+          background: alpha(#ffffff, px <= 20 ? 0.11 : 0.06)
+          align: center
+          Image {
+            src: "https://a.espncdn.com/i/teamlogos/nfl/500/${code}.png"
+            width: imgW
+            height: imgH
+            fit: contain
+          }
+        }
+      } else {
+        Image {
+          src: "https://a.espncdn.com/i/teamlogos/nfl/500/${code}.png"
+          width: w
+          height: px
+          fit: contain
+        }
+      }
+    }
+  }
+
+  component WinnerAura(w, h, col) {
+    Canvas {
+      width: w
+      height: h
+      let cx = width / 2
+      let cy = height / 2
+      let r = min(width, height) / 2
+      let rRing = r * 0.88
+      let pulse = 0.94 + 0.06 * sin(time * 2.2)
+      let rGlow = r * 0.98 * pulse
+      circle(cx, cy, rGlow, fill: radial(cx, cy, rGlow, [alpha(col, 0.34), alpha(col, 0.13), alpha(col, 0.0)]))
+      circle(cx, cy, rRing, fill: alpha(col, 0.11), stroke: alpha(col, 0.50), width: 1.3)
+      let stars = [
+        {dx: -1.24, dy: -0.58, ph: 0.2, s: 1.02},
+        {dx: 1.24, dy: -0.54, ph: 1.6, s: 1.10},
+        {dx: -1.34, dy: 0.34, ph: 3.1, s: 0.86},
+        {dx: 1.32, dy: 0.38, ph: 4.5, s: 0.94},
+        {dx: 1.12, dy: -0.84, ph: 2.3, s: 0.72}
+      ]
+      for st in stars {
+        let twk = 0.32 + 0.68 * pow(0.5 + 0.5 * sin(time * 3.0 + st.ph), 2)
+        let drift = sin(time * 1.6 + st.ph) * (r * 0.05)
+        let sx = clamp(cx + st.dx * rRing, 5, width - 5)
+        let sy = clamp(cy + st.dy * rRing + drift, 5, height - 5)
+        let sr = max(2.2, r * 0.15 * st.s * (0.65 + 0.55 * twk))
+        path([
+          [sx, sy - sr], [sx + sr * 0.28, sy - sr * 0.28],
+          [sx + sr, sy], [sx + sr * 0.28, sy + sr * 0.28],
+          [sx, sy + sr], [sx - sr * 0.28, sy + sr * 0.28],
+          [sx - sr, sy], [sx - sr * 0.28, sy - sr * 0.28]
+        ], closed: true, fill: alpha(mix(col, foreground, 0.35), 0.40 + 0.60 * twk))
+      }
+    }
+  }
+
+  component BooAura(w, h) {
+    Canvas {
+      width: w
+      height: h
+      let cx = width / 2
+      let cy = height / 2
+      let r = min(width, height) / 2
+      let rRing = r * 0.88
+      let pulse = 0.94 + 0.06 * sin(time * 2.0)
+      let rGlow = r * 0.98 * pulse
+      circle(cx, cy, rGlow, fill: radial(cx, cy, rGlow, [alpha(red, 0.28), alpha(red, 0.10), alpha(red, 0.0)]))
+      circle(cx, cy, rRing, fill: alpha(red, 0.08), stroke: alpha(red, 0.44), width: 1.2)
+      let b1 = sin(time * 2.6) * (r * 0.08)
+      let b2 = sin(time * 2.6 + 2.2) * (r * 0.08)
+      let a1 = 0.55 + 0.45 * (0.5 + 0.5 * sin(time * 3.0))
+      let a2 = 0.55 + 0.45 * (0.5 + 0.5 * sin(time * 3.0 + 2.4))
+      let tx1 = max(14, cx - rRing * 1.28)
+      let ty1 = max(7, cy - rRing * 0.62) + b1
+      let tx2 = min(width - 17, cx + rRing * 1.28)
+      let ty2 = min(height - 7, cy + rRing * 0.58) + b2
+      rotate(-14, tx1, ty1) {
+        text("BOO!", tx1, ty1, size: max(7, r * 0.26), color: alpha(red, a1), align: center, bold: true)
+      }
+      rotate(11, tx2, ty2) {
+        text("BOOOO", tx2, ty2, size: max(6.5, r * 0.23), color: alpha(red, a2), align: center, bold: true)
+      }
+      let d1 = (time * 0.55) % 1
+      let d2 = (time * 0.55 + 0.5) % 1
+      let vx1 = min(width - 9, cx + rRing * 1.22)
+      let vy1 = max(6, cy - rRing * 0.65) + d1 * (r * 0.32)
+      let vx2 = max(9, cx - rRing * 1.22)
+      let vy2 = max(10, cy + rRing * 0.22) + d2 * (r * 0.32)
+      let cr = max(2.2, r * 0.11)
+      path([[vx1 - cr, vy1 - cr * 0.5], [vx1, vy1 + cr * 0.5], [vx1 + cr, vy1 - cr * 0.5]], stroke: alpha(red, (1 - d1) * 0.75), width: 1.4, cap: round)
+      path([[vx2 - cr, vy2 - cr * 0.5], [vx2, vy2 + cr * 0.5], [vx2 + cr, vy2 - cr * 0.5]], stroke: alpha(red, (1 - d2) * 0.75), width: 1.4, cap: round)
+    }
+  }
+
+  component ExpandButton(sz, iconSz, col) {
+    Box {
+      size: sz
+      align: center
+      radius: 6 * corners
+      background: alpha(surface, 0.55)
+      border: 1
+      borderColor: alpha(border, 0.55)
+      onTap: { haptic(); screen() }
+      Canvas {
+        width: iconSz
+        height: iconSz
+        let m = iconSz * 0.14
+        let h = iconSz * 0.38
+        let sw = max(1.6, iconSz * 0.10)
+        line(m, iconSz - m, iconSz - m, m, stroke: col, width: sw, cap: round)
+        line(iconSz - m - h, m, iconSz - m, m, stroke: col, width: sw, cap: round)
+        line(iconSz - m, m, iconSz - m, m + h, stroke: col, width: sw, cap: round)
+        line(m, iconSz - m, m + h, iconSz - m, stroke: col, width: sw, cap: round)
+        line(m, iconSz - m, m, iconSz - m - h, stroke: col, width: sw, cap: round)
       }
     }
   }
@@ -355,7 +482,7 @@ widget "hawkwatch" {
           text: fgIsLive ? "LIVE GAME" : (fgIsFinal ? (fgVenue != "" ? "FINAL • W${fgWeekNum ?? ''} • ${fgVenue}" : "FINAL • WEEK ${fgWeekNum ?? ''}") : (fgVenue != "" ? "W${fgWeekNum ?? ''} • ${fgVenue}" : "UPCOMING • WEEK ${fgWeekNum ?? ''}"))
           style: small
           bold: true
-          color: fgIsLive ? seaGreen : (fgIsFinal ? (fgSea.winner == true ? green : muted) : accent)
+          color: fgIsLive ? seaGreen : (fgIsFinal ? (fgSea.winner == true ? seaGreen : muted) : seaGreen)
           weight: 1
           maxLines: 1
         }
@@ -364,20 +491,20 @@ widget "hawkwatch" {
             text: fgSea.winner == true ? "WIN" : (fgOpp.winner == true ? "LOSS" : "TIE")
             style: label
             bold: true
-            color: fgSea.winner == true ? green : (fgOpp.winner == true ? red : muted)
+            color: fgSea.winner == true ? winGreen : (fgOpp.winner == true ? red : muted)
             padding: [4, 1]
-            radius: 3
-            background: fgSea.winner == true ? alpha(green, 0.2) : (fgOpp.winner == true ? alpha(red, 0.2) : alpha(muted, 0.2))
+            radius: 3 * corners
+            background: fgSea.winner == true ? alpha(winGreen, 0.2) : (fgOpp.winner == true ? alpha(red, 0.2) : alpha(muted, 0.2))
           }
         } else if fgBroadcast != "" {
           Text {
             text: fgBroadcast
             style: label
             bold: true
-            color: foreground
+            color: seaGreen
             padding: [4, 1]
-            radius: 3
-            background: alpha(accent, 0.2)
+            radius: 3 * corners
+            background: alpha(seaGreen, 0.18)
           }
         }
       }
@@ -395,9 +522,20 @@ widget "hawkwatch" {
           align: center
           gap: 1
           Box {
+            width: awayIsWinner ? auraW : int(round(awayLogoPx * 1.32)) + 4
             height: logoSlotH
             align: center
-            TeamLogo { abbr: fgAway.team.abbreviation; px: awayLogoPx }
+            if awayIsWinner {
+              if seaWonFeatured {
+                WinnerAura { w: auraW; h: logoSlotH; col: seaGreen }
+              } else {
+                BooAura { w: auraW; h: logoSlotH }
+              }
+            }
+            Box {
+              opacity: fgHasWinner && !awayIsWinner ? 0.82 : 1
+              TeamLogo { abbr: fgAway.team.abbreviation; px: awayLogoPx; plate: !awayIsWinner }
+            }
           }
           Text {
             text: fgAway.team.abbreviation
@@ -417,8 +555,8 @@ widget "hawkwatch" {
           gap: 1
           width: centerColW
           if fgIsPre {
-            Text { text: "VS"; style: label; color: muted; bold: true; align: center }
-            Text { text: fgKickDate; style: small; color: accent; bold: true; align: center }
+            Text { text: "AT"; style: label; color: muted; bold: true; align: center }
+            Text { text: fgKickDate; style: small; color: foreground; bold: true; align: center }
             Text { text: fgKickTime; style: small; color: seaGreen; align: center; bold: true }
           } else {
             Row {
@@ -455,9 +593,20 @@ widget "hawkwatch" {
           align: center
           gap: 1
           Box {
+            width: homeIsWinner ? auraW : int(round(homeLogoPx * 1.32)) + 4
             height: logoSlotH
             align: center
-            TeamLogo { abbr: fgHome.team.abbreviation; px: homeLogoPx }
+            if homeIsWinner {
+              if seaWonFeatured {
+                WinnerAura { w: auraW; h: logoSlotH; col: seaGreen }
+              } else {
+                BooAura { w: auraW; h: logoSlotH }
+              }
+            }
+            Box {
+              opacity: fgHasWinner && !homeIsWinner ? 0.82 : 1
+              TeamLogo { abbr: fgHome.team.abbreviation; px: homeLogoPx; plate: !homeIsWinner }
+            }
           }
           Text {
             text: fgHome.team.abbreviation
@@ -510,7 +659,7 @@ widget "hawkwatch" {
               text: oddsBadgeText
               style: label
               bold: true
-              color: hasLiveOdds ? red : (fgIsPre || fgIsFinal ? accent : muted)
+              color: hasLiveOdds ? red : (fgIsPre || fgIsFinal ? seaGreen : muted)
             }
             if oddsSpreadHeadline != "" {
               Text { text: oddsSpreadHeadline; style: label; bold: true; color: foreground; maxLines: 1 }
@@ -542,7 +691,7 @@ widget "hawkwatch" {
             }
             Spacer { weight: 1 }
             Text {
-              text: isNarrowTile ? (hasLiveProb ? "● LIVE" : (fgIsFinal ? "START PROB" : "WIN PROB")) : (hasLiveProb ? "● ESPN LIVE" : (fgIsFinal ? "STARTING WIN PROB" : "ESPN WIN PROB"))
+              text: isNarrowTile ? (hasLiveProb ? "● LIVE" : (fgIsFinal ? "PREGAME" : "WIN PROB")) : (hasLiveProb ? "● ESPN LIVE" : (fgIsFinal ? "PREGAME WIN PROB" : "ESPN WIN PROB"))
               style: label
               bold: hasLiveProb
               color: hasLiveProb ? red : muted
@@ -558,18 +707,18 @@ widget "hawkwatch" {
           Row {
             fill: width
             height: barH
-            radius: 2
+            radius: 2 * corners
             clip: true
             gap: 2
             Box {
               weight: clamp(awayWinPct, 2, 98)
               height: barH
-              background: !fgIsHome ? seaGreen : alpha(muted, 0.55)
+              background: !fgIsHome ? seaGreen : alpha(foreground, 0.32)
             }
             Box {
               weight: clamp(homeWinPct, 2, 98)
               height: barH
-              background: fgIsHome ? seaGreen : alpha(muted, 0.55)
+              background: fgIsHome ? seaGreen : alpha(foreground, 0.32)
             }
           }
         }
@@ -601,12 +750,12 @@ widget "hawkwatch" {
               text: pgWon ? "W" : "L"
               style: small
               bold: true
-              color: pgWon ? green : red
+              color: pgWon ? winGreen : red
               padding: [4, 1]
-              radius: 3
-              background: pgWon ? alpha(green, 0.2) : alpha(red, 0.2)
+              radius: 3 * corners
+              background: pgWon ? alpha(winGreen, 0.2) : alpha(red, 0.2)
             }
-            TeamLogo { abbr: pgOppAbbr; px: 16 }
+            TeamLogo { abbr: pgOppAbbr; px: 16; plate: true }
             Text {
               text: "${pgSeaScore}-${pgOppScore} ${pgIsHome ? 'vs' : '@'} ${pgOppAbbr}"
               style: small
@@ -633,14 +782,14 @@ widget "hawkwatch" {
             align: center
             gap: 6
             Text { text: "Next:"; style: small; color: muted }
-            TeamLogo { abbr: ngOppAbbr; px: 16 }
+            TeamLogo { abbr: ngOppAbbr; px: 16; plate: true }
             Text {
               text: "${ngOpp.homeAway == 'home' ? '@' : 'vs'} ${ngOppAbbr}"
               style: small
               bold: true
             }
             Spacer { weight: 1 }
-            Text { text: ngWhen; style: label; color: accent; maxLines: 1 }
+            Text { text: ngWhen; style: label; color: seaGreen; maxLines: 1 }
           }
         }
       }
@@ -658,18 +807,25 @@ widget "hawkwatch" {
         Row {
           fill: width
           align: center
-          gap: 6
+          gap: 4
 
-          Text { text: "NFCW"; style: label; bold: true; color: muted; width: 34 }
+          Text { text: "NFCW"; style: label; bold: true; color: muted; width: 30 }
 
-          for entry in nfcwQuickStrip key entry.team.id {
+          for entry, i in nfcwQuickStrip key entry.team.id {
             let isSea = entry.team.abbreviation == 'SEA'
             let rec = (entry.stats.find(s => s.name == 'overall') ?? {}).displayValue ?? '–'
 
+            if i > 0 {
+              Box {
+                width: 1
+                height: 9
+                background: alpha(border, 0.55)
+              }
+            }
             Row {
               align: center
               gap: 3
-              TeamLogo { abbr: entry.team.abbreviation; px: 14 }
+              TeamLogo { abbr: entry.team.abbreviation; px: 14; plate: true }
               Text {
                 text: "${entry.team.abbreviation} ${rec}"
                 style: label
@@ -680,7 +836,7 @@ widget "hawkwatch" {
                 Box {
                   width: 4
                   height: 4
-                  radius: 2
+                  radius: 2 * corners
                   background: seaGreen
                 }
               }
@@ -693,6 +849,7 @@ widget "hawkwatch" {
     }
   }
 
+  fps: fgHasWinner ? (modes.saver ? 5 : 15) : 1
   onTap: { haptic(); screen() }
 
   Column {
@@ -706,7 +863,8 @@ widget "hawkwatch" {
       align: center
       Image {
         src: "https://a.espncdn.com/i/teamlogos/nfl/500/sea.png"
-        size: 22
+        width: 34
+        height: 26
         fit: contain
       }
       Column {
@@ -721,25 +879,28 @@ widget "hawkwatch" {
             bold: true
             color: seaGreen
             padding: [4, 1]
-            radius: 4
+            radius: 4 * corners
             background: alpha(seaGreen, 0.2)
           }
         }
         Text { text: standingStr; style: label; color: muted; maxLines: 1 }
       }
       Spacer { weight: 1 }
-      if fgIsLive {
-        Text {
-          text: "● LIVE"
-          style: small
-          bold: true
-          color: red
-          padding: [5, 2]
-          radius: 4
-          background: alpha(red, 0.2)
+      Row {
+        gap: 6
+        align: center
+        if fgIsLive {
+          Text {
+            text: "● LIVE"
+            style: small
+            bold: true
+            color: red
+            padding: [5, 2]
+            radius: 4 * corners
+            background: alpha(red, 0.2)
+          }
         }
-      } else {
-        Text { text: "⤢"; style: body; color: muted; onTap: { haptic(); screen() } }
+        ExpandButton { sz: expandBtnSz; iconSz: expandIconSz; col: mix(foreground, muted, 0.35) }
       }
     }
 
@@ -873,11 +1034,11 @@ widget "hawkwatch" {
                 align: center
                 gap: 8
                 padding: [4, 3]
-                radius: 4
+                radius: 4 * corners
                 background: isSea ? alpha(seaGreen, 0.15) : rgb(0, 0, 0, 0)
 
                 Text { text: "${i + 1}"; style: small; color: muted; width: 14 }
-                TeamLogo { abbr: entry.team.abbreviation; px: 18 }
+                TeamLogo { abbr: entry.team.abbreviation; px: 18; plate: true }
                 Text {
                   text: entry.team.shortDisplayName ?? entry.team.displayName
                   style: small
@@ -904,7 +1065,7 @@ widget "hawkwatch" {
                 Text {
                   text: strk
                   style: small
-                  color: startsWith(strk, 'W') ? green : (startsWith(strk, 'L') ? red : muted)
+                  color: startsWith(strk, 'W') ? winGreen : (startsWith(strk, 'L') ? red : muted)
                   width: 36
                   align: end
                 }
@@ -1015,7 +1176,7 @@ widget "hawkwatch" {
                   text: "${gWon ? 'W' : 'L'} ${scSea}-${scOpp}"
                   style: small
                   bold: true
-                  color: gWon ? green : red
+                  color: gWon ? winGreen : red
                   align: end
                 }
               } else if gState == 'in' {
@@ -1050,8 +1211,8 @@ widget "hawkwatch" {
       // Top Hero Banner
       Box {
         fill: width
-        padding: 14
-        radius: 12 * corners
+        padding: [12, 9]
+        radius: 10 * corners
         background: alpha(surface, 0.6)
         border: 1
         borderColor: seaGreen
@@ -1059,24 +1220,25 @@ widget "hawkwatch" {
         Row {
           fill: width
           align: center
-          gap: 12
+          gap: 10
           Image {
             src: "https://a.espncdn.com/i/teamlogos/nfl/500/sea.png"
-            size: 52
+            width: 48
+            height: 36
             fit: contain
           }
           Column {
-            gap: 2
+            gap: 1
             weight: 1
-            Text { text: "HawkWatch"; style: title; bold: true }
-            Text { text: standingStr; style: small; color: seaGreen; bold: true }
+            Text { text: "Seattle Seahawks"; style: body; bold: true }
+            Text { text: standingStr; style: label; color: muted }
           }
           Column {
             align: end
-            width: 95
-            gap: 2
-            Text { text: recordStr; style: title; bold: true; color: seaGreen }
-            Text { text: "RECORD"; style: label; color: muted }
+            width: 72
+            gap: 1
+            Text { text: recordStr; style: title; bold: true; color: seaGreen; align: end }
+            Text { text: "RECORD"; style: label; color: muted; align: end }
           }
         }
       }
@@ -1141,7 +1303,7 @@ widget "hawkwatch" {
           gap: 10
           fill: width
 
-          Text { text: "CURRENT / UPCOMING GAME"; style: label; color: muted }
+          Text { text: fgIsLive ? "LIVE GAME" : (fgIsFinal ? "FINAL RESULT" : "NEXT MATCHUP"); style: label; color: muted }
 
           Box {
             fill: width
@@ -1162,17 +1324,27 @@ widget "hawkwatch" {
                   text: fgIsLive ? "● LIVE IN PROGRESS" : (fgIsFinal ? "FINAL SCORE" : "WEEK ${featuredGame.week.number ?? ''} MATCHUP")
                   style: small
                   bold: true
-                  color: fgIsLive ? seaGreen : accent
+                  color: seaGreen
                 }
                 Spacer { weight: 1 }
-                if fgBroadcast != "" {
+                if fgIsFinal {
+                  Text {
+                    text: fgSea.winner == true ? "WIN" : (fgOpp.winner == true ? "LOSS" : "TIE")
+                    style: small
+                    bold: true
+                    color: fgSea.winner == true ? winGreen : (fgOpp.winner == true ? red : muted)
+                    padding: [6, 2]
+                    radius: 4 * corners
+                    background: fgSea.winner == true ? alpha(winGreen, 0.2) : (fgOpp.winner == true ? alpha(red, 0.2) : alpha(muted, 0.2))
+                  }
+                } else if fgBroadcast != "" {
                   Text {
                     text: "TV: ${fgBroadcast}"
                     style: small
-                    color: accent
+                    color: seaGreen
                     padding: [6, 2]
-                    radius: 4
-                    background: alpha(accent, 0.15)
+                    radius: 4 * corners
+                    background: alpha(seaGreen, 0.16)
                   }
                 }
               }
@@ -1188,16 +1360,28 @@ widget "hawkwatch" {
                   align: center
                   gap: 4
                   Box {
+                    width: awayIsWinner ? screenAuraW : int(round(screenAwayLogoPx * 1.32)) + 4
                     height: screenLogoSlotH
                     align: center
-                    TeamLogo { abbr: fgAway.team.abbreviation; px: screenAwayLogoPx }
+                    if awayIsWinner {
+                      if seaWonFeatured {
+                        WinnerAura { w: screenAuraW; h: screenLogoSlotH; col: seaGreen }
+                      } else {
+                        BooAura { w: screenAuraW; h: screenLogoSlotH }
+                      }
+                    }
+                    Box {
+                      opacity: fgHasWinner && !awayIsWinner ? 0.82 : 1
+                      TeamLogo { abbr: fgAway.team.abbreviation; px: screenAwayLogoPx; plate: !awayIsWinner }
+                    }
                   }
                   Text {
                     text: fgAway.team.shortDisplayName ?? fgAway.team.displayName ?? fgAway.team.abbreviation
-                    style: body
+                    fontSize: 13
                     bold: true
                     color: fgHasWinner && !fgAway.winner ? muted : foreground
                     align: center
+                    maxLines: 2
                   }
                   Text {
                     text: fgAwayRec
@@ -1207,36 +1391,37 @@ widget "hawkwatch" {
                   }
                 }
 
-                // Middle Score / Clock (unconstrained width prevents score clipping)
+                // Middle Score / Clock
                 Column {
-                  width: 170
+                  width: 116
                   align: center
                   gap: 4
 
                   if fgIsPre {
                     Text { text: "AT"; style: title; color: muted; bold: true; align: center }
-                    Text { text: "${fgKickDate} • ${fgKickTime}"; style: small; color: seaGreen; align: center; bold: true }
+                    Text { text: fgKickDate; style: small; color: foreground; align: center; bold: true }
+                    Text { text: fgKickTime; style: small; color: seaGreen; align: center; bold: true }
                   } else {
                     Row {
-                      gap: 10
+                      gap: 6
                       align: center
                       Text {
                         text: fgAwayScore
-                        style: huge
+                        fontSize: 28
                         bold: true
                         color: fgHasWinner && !fgAway.winner ? muted : foreground
                       }
-                      Text { text: "-"; style: huge; color: muted }
+                      Text { text: "-"; fontSize: 28; color: muted }
                       Text {
                         text: fgHomeScore
-                        style: huge
+                        fontSize: 28
                         bold: true
                         color: fgHasWinner && !fgHome.winner ? muted : foreground
                       }
                     }
                     Text {
                       text: fgStatusText
-                      style: body
+                      style: small
                       color: fgIsLive ? seaGreen : muted
                       bold: true
                       align: center
@@ -1260,16 +1445,28 @@ widget "hawkwatch" {
                   align: center
                   gap: 4
                   Box {
+                    width: homeIsWinner ? screenAuraW : int(round(screenHomeLogoPx * 1.32)) + 4
                     height: screenLogoSlotH
                     align: center
-                    TeamLogo { abbr: fgHome.team.abbreviation; px: screenHomeLogoPx }
+                    if homeIsWinner {
+                      if seaWonFeatured {
+                        WinnerAura { w: screenAuraW; h: screenLogoSlotH; col: seaGreen }
+                      } else {
+                        BooAura { w: screenAuraW; h: screenLogoSlotH }
+                      }
+                    }
+                    Box {
+                      opacity: fgHasWinner && !homeIsWinner ? 0.82 : 1
+                      TeamLogo { abbr: fgHome.team.abbreviation; px: screenHomeLogoPx; plate: !homeIsWinner }
+                    }
                   }
                   Text {
                     text: fgHome.team.shortDisplayName ?? fgHome.team.displayName ?? fgHome.team.abbreviation
-                    style: body
+                    fontSize: 13
                     bold: true
                     color: fgHasWinner && !fgHome.winner ? muted : foreground
                     align: center
+                    maxLines: 2
                   }
                   Text {
                     text: fgHomeRec
@@ -1290,12 +1487,18 @@ widget "hawkwatch" {
                 Column {
                   gap: 4
                   Row {
-                    Text { text: "Stadium:"; style: small; color: muted; width: 70 }
+                    Text { text: "Stadium:"; style: small; color: muted; width: 60 }
                     Text { text: fgVenue; style: small; weight: 1 }
+                  }
+                  if fgIsFinal && fgBroadcast != "" {
+                    Row {
+                      Text { text: "Network:"; style: small; color: muted; width: 60 }
+                      Text { text: fgBroadcast; style: small; weight: 1 }
+                    }
                   }
                   if featuredGame.weather != null {
                     Row {
-                      Text { text: "Weather:"; style: small; color: muted; width: 70 }
+                      Text { text: "Weather:"; style: small; color: muted; width: 60 }
                       Text {
                         text: "${featuredGame.weather.displayValue ?? ''}, ${featuredGame.weather.temperature ?? ''}°F"
                         style: small
@@ -1307,10 +1510,21 @@ widget "hawkwatch" {
               }
 
               // ESPN Gamecast button
-              Button {
-                text: "ESPN Gamecast & Preview ↗"
+              Box {
                 fill: width
+                padding: [12, 9]
+                radius: 6 * corners
+                background: alpha(seaGreen, 0.12)
+                border: 1
+                borderColor: alpha(seaGreen, 0.6)
                 onTap: { haptic(); url("https://www.espn.com/nfl/game/_/gameId/${featuredGame.id}") }
+                Text {
+                  text: fgIsLive ? "ESPN Live Gamecast ↗" : (fgIsFinal ? "ESPN Box Score & Recap ↗" : "ESPN Matchup Preview ↗")
+                  style: small
+                  bold: true
+                  color: seaGreen
+                  align: center
+                }
               }
             }
           }
@@ -1318,7 +1532,7 @@ widget "hawkwatch" {
           // Betting Odds & ESPN Win Probability Card
           if hasOdds || hasWinProb {
             Text {
-              text: (hasLiveOdds || hasLiveProb) ? "LIVE ODDS & WIN PROBABILITY" : (fgIsFinal ? "STARTING ODDS & WIN PROBABILITY" : "BETTING ODDS & WIN PROBABILITY")
+              text: (hasLiveOdds || hasLiveProb) ? "LIVE ODDS & WIN PROBABILITY" : (fgIsFinal ? "PREGAME ODDS & WIN PROBABILITY" : "BETTING ODDS & WIN PROBABILITY")
               style: label
               color: muted
             }
@@ -1349,12 +1563,12 @@ widget "hawkwatch" {
                           bold: true
                           color: red
                           padding: [4, 1]
-                          radius: 3
+                          radius: 3 * corners
                           background: alpha(red, 0.2)
                         }
                       }
                       Text {
-                        text: hasLiveProb ? "ESPN Win Probability" : (fgIsFinal ? "ESPN Starting Win Probability" : "ESPN Matchup Predictor")
+                        text: hasLiveProb ? "ESPN Win Probability" : (fgIsFinal ? "ESPN Pregame Win Probability" : "ESPN Matchup Predictor")
                         style: small
                         bold: true
                         color: hasLiveProb ? red : foreground
@@ -1367,7 +1581,7 @@ widget "hawkwatch" {
                       fill: width
                       align: center
                       gap: 6
-                      TeamLogo { abbr: fgAwayAbbr; px: 16 }
+                      TeamLogo { abbr: fgAwayAbbr; px: 18; plate: true }
                       Text {
                         text: "${fgAwayName} ${awayWinPctStr}%"
                         style: small
@@ -1381,24 +1595,24 @@ widget "hawkwatch" {
                         bold: fgIsHome || homeWinPct >= awayWinPct
                         color: fgIsHome ? seaGreen : (homeWinPct >= awayWinPct ? foreground : muted)
                       }
-                      TeamLogo { abbr: fgHomeAbbr; px: 16 }
+                      TeamLogo { abbr: fgHomeAbbr; px: 18; plate: true }
                     }
 
                     Row {
                       fill: width
                       height: 8
-                      radius: 4
+                      radius: 4 * corners
                       clip: true
                       gap: 2
                       Box {
                         weight: clamp(awayWinPct, 2, 98)
                         height: 8
-                        background: !fgIsHome ? seaGreen : alpha(muted, 0.55)
+                        background: !fgIsHome ? seaGreen : alpha(foreground, 0.32)
                       }
                       Box {
                         weight: clamp(homeWinPct, 2, 98)
                         height: 8
-                        background: fgIsHome ? seaGreen : alpha(muted, 0.55)
+                        background: fgIsHome ? seaGreen : alpha(foreground, 0.32)
                       }
                     }
                   }
@@ -1427,12 +1641,12 @@ widget "hawkwatch" {
                           bold: true
                           color: red
                           padding: [4, 1]
-                          radius: 3
+                          radius: 3 * corners
                           background: alpha(red, 0.2)
                         }
                       }
                       Text {
-                        text: hasLiveOdds ? "Live Betting Lines" : (fgIsLive ? "Starting Lines (Live Paused)" : (fgIsFinal ? "Starting Betting Lines" : "Game Lines"))
+                        text: hasLiveOdds ? "Live Betting Lines" : (fgIsLive ? "Closing Lines (Live Paused)" : (fgIsFinal ? "Closing Pregame Lines" : "Game Lines"))
                         style: small
                         bold: true
                         color: hasLiveOdds ? red : foreground
@@ -1444,7 +1658,7 @@ widget "hawkwatch" {
                         bold: true
                         color: seaGreen
                         padding: [5, 2]
-                        radius: 4
+                        radius: 4 * corners
                         background: alpha(seaGreen, 0.16)
                       }
                     }
@@ -1453,21 +1667,21 @@ widget "hawkwatch" {
                       fill: width
                       align: center
                       gap: 6
-                      padding: [4, 0]
+                      padding: [6, 2]
                       Text { text: "TEAM"; style: label; color: muted; weight: 1 }
-                      Text { text: "SPREAD"; style: label; color: muted; width: 74; align: end }
-                      Text { text: "ML"; style: label; color: muted; width: 50; align: end }
-                      Text { text: "TOTAL"; style: label; color: muted; width: 90; align: end }
+                      Text { text: "SPREAD"; style: label; color: muted; width: 78; align: end }
+                      Text { text: "ML"; style: label; color: muted; width: 44; align: end }
+                      Text { text: "TOTAL"; style: label; color: muted; width: 88; align: end }
                     }
 
                     Row {
                       fill: width
                       align: center
                       gap: 6
-                      padding: [6, 4]
-                      radius: 4
+                      padding: [6, 5]
+                      radius: 4 * corners
                       background: !fgIsHome ? alpha(seaGreen, 0.15) : rgb(0, 0, 0, 0)
-                      TeamLogo { abbr: fgAwayAbbr; px: 18 }
+                      TeamLogo { abbr: fgAwayAbbr; px: 18; plate: true }
                       Text {
                         text: fgAwayName
                         style: small
@@ -1478,26 +1692,26 @@ widget "hawkwatch" {
                       }
                       Text {
                         text: oddsAwaySpread != "" ? (oddsAwaySpreadJuice != "" ? "${oddsAwaySpread} (${oddsAwaySpreadJuice})" : oddsAwaySpread) : "–"
-                        style: small
+                        fontSize: 11
                         bold: true
-                        width: 74
+                        width: 78
                         align: end
                         maxLines: 1
                       }
                       Text {
                         text: oddsAwayMl != "" ? oddsAwayMl : "–"
-                        style: small
+                        fontSize: 11
                         bold: true
                         color: !fgIsHome ? seaGreen : foreground
-                        width: 50
+                        width: 44
                         align: end
                         maxLines: 1
                       }
                       Text {
-                        text: oddsOuStr != "" ? (oddsOverJuice != "" ? "O ${oddsOuStr} (${oddsOverJuice})" : "O ${oddsOuStr}") : "–"
-                        style: small
+                        text: oddsOuStr != "" ? (oddsOverJuice != "" ? "O${oddsOuStr} (${oddsOverJuice})" : "O${oddsOuStr}") : "–"
+                        fontSize: 11
                         color: muted
-                        width: 90
+                        width: 88
                         align: end
                         maxLines: 1
                       }
@@ -1507,10 +1721,10 @@ widget "hawkwatch" {
                       fill: width
                       align: center
                       gap: 6
-                      padding: [6, 4]
-                      radius: 4
+                      padding: [6, 5]
+                      radius: 4 * corners
                       background: fgIsHome ? alpha(seaGreen, 0.15) : rgb(0, 0, 0, 0)
-                      TeamLogo { abbr: fgHomeAbbr; px: 18 }
+                      TeamLogo { abbr: fgHomeAbbr; px: 18; plate: true }
                       Text {
                         text: fgHomeName
                         style: small
@@ -1521,26 +1735,26 @@ widget "hawkwatch" {
                       }
                       Text {
                         text: oddsHomeSpread != "" ? (oddsHomeSpreadJuice != "" ? "${oddsHomeSpread} (${oddsHomeSpreadJuice})" : oddsHomeSpread) : "–"
-                        style: small
+                        fontSize: 11
                         bold: true
-                        width: 74
+                        width: 78
                         align: end
                         maxLines: 1
                       }
                       Text {
                         text: oddsHomeMl != "" ? oddsHomeMl : "–"
-                        style: small
+                        fontSize: 11
                         bold: true
                         color: fgIsHome ? seaGreen : foreground
-                        width: 50
+                        width: 44
                         align: end
                         maxLines: 1
                       }
                       Text {
-                        text: oddsOuStr != "" ? (oddsUnderJuice != "" ? "U ${oddsOuStr} (${oddsUnderJuice})" : "U ${oddsOuStr}") : "–"
-                        style: small
+                        text: oddsOuStr != "" ? (oddsUnderJuice != "" ? "U${oddsOuStr} (${oddsUnderJuice})" : "U${oddsOuStr}") : "–"
+                        fontSize: 11
                         color: muted
-                        width: 90
+                        width: 88
                         align: end
                         maxLines: 1
                       }
@@ -1578,14 +1792,14 @@ widget "hawkwatch" {
               Row {
                 fill: width
                 align: center
-                gap: 8
+                gap: 6
                 padding: [6, 2]
                 Text { text: "#"; style: label; color: muted; width: 14 }
                 Text { text: "TEAM"; style: label; color: muted; weight: 1 }
-                Text { text: "W-L"; style: label; color: muted; width: 44; align: end }
-                Text { text: "DIV"; style: label; color: muted; width: 36; align: end }
-                Text { text: "STRK"; style: label; color: muted; width: 36; align: end }
-                Text { text: "SEED"; style: label; color: muted; width: 50; align: end }
+                Text { text: "W-L"; style: label; color: muted; width: 38; align: end }
+                Text { text: "DIV"; style: label; color: muted; width: 34; align: end }
+                Text { text: "STRK"; style: label; color: muted; width: 34; align: end }
+                Text { text: "SEED"; style: label; color: muted; width: 34; align: end }
               }
 
               for entry, i in nfcWest key entry.team.id {
@@ -1598,15 +1812,15 @@ widget "hawkwatch" {
                 Row {
                   fill: width
                   align: center
-                  gap: 8
+                  gap: 6
                   padding: [6, 4]
-                  radius: 4
+                  radius: 4 * corners
                   background: isSea ? alpha(seaGreen, 0.15) : rgb(0, 0, 0, 0)
 
                   Text { text: "${i + 1}"; style: small; color: muted; width: 14 }
-                  TeamLogo { abbr: entry.team.abbreviation; px: 20 }
+                  TeamLogo { abbr: entry.team.abbreviation; px: 18; plate: true }
                   Text {
-                    text: entry.team.displayName
+                    text: entry.team.shortDisplayName ?? entry.team.displayName
                     style: small
                     bold: isSea
                     color: isSea ? seaGreen : foreground
@@ -1618,29 +1832,33 @@ widget "hawkwatch" {
                     style: small
                     bold: true
                     color: isSea ? seaGreen : foreground
-                    width: 44
+                    width: 38
                     align: end
+                    maxLines: 1
                   }
                   Text {
                     text: divRec
                     style: small
                     color: muted
-                    width: 36
+                    width: 34
                     align: end
+                    maxLines: 1
                   }
                   Text {
                     text: strk
                     style: small
-                    color: startsWith(strk, 'W') ? green : (startsWith(strk, 'L') ? red : muted)
-                    width: 36
+                    color: startsWith(strk, 'W') ? winGreen : (startsWith(strk, 'L') ? red : muted)
+                    width: 34
                     align: end
+                    maxLines: 1
                   }
                   Text {
-                    text: "Seed #${seed}"
+                    text: "#${seed}"
                     style: label
                     color: muted
-                    width: 50
+                    width: 34
                     align: end
+                    maxLines: 1
                   }
                 }
               }
@@ -1667,12 +1885,12 @@ widget "hawkwatch" {
                   text: pgWon ? "WIN" : "LOSS"
                   style: small
                   bold: true
-                  color: pgWon ? green : red
+                  color: pgWon ? winGreen : red
                   padding: [6, 3]
-                  radius: 4
-                  background: pgWon ? alpha(green, 0.2) : alpha(red, 0.2)
+                  radius: 4 * corners
+                  background: pgWon ? alpha(winGreen, 0.2) : alpha(red, 0.2)
                 }
-                TeamLogo { abbr: pgOppAbbr; px: 28 }
+                TeamLogo { abbr: pgOppAbbr; px: 28; plate: true }
                 Column {
                   gap: 1
                   weight: 1
@@ -1813,10 +2031,10 @@ widget "hawkwatch" {
                     text: "${gWon ? 'W' : 'L'} ${scSea}-${scOpp}"
                     style: small
                     bold: true
-                    color: gWon ? green : red
+                    color: gWon ? winGreen : red
                     padding: [6, 2]
                     radius: 4
-                    background: gWon ? alpha(green, 0.2) : alpha(red, 0.2)
+                    background: gWon ? alpha(winGreen, 0.2) : alpha(red, 0.2)
                   }
                 } else if gState == 'in' {
                   Text {
