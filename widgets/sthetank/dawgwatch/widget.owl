@@ -262,6 +262,45 @@ widget "dawgwatch" {
 
   let articles = newsFilter == "all" ? allArticles : allArticles.filter(a => a.src == newsFilter)
 
+  // Responsive tile scaling (adapts to tile size and visible content strips)
+  let th = tileHeight ?? 282
+  let tw = tileWidth ?? 414
+  let hasSubStrip = (fgIsPre && prevGame != null) || (fgIsFinal && nextSchedGame != null)
+  let hasLiveSit = fgIsLive && fgDownDist != ""
+  let scoreBaseH = 173 + (hasSubStrip ? 23 : 0) + (hasLiveSit ? 19 : 0) + (hasOdds ? 21 : 0) + (hasWinProb ? 21 : 0)
+  let scoreSpare = th - scoreBaseH
+  let isCompactTile = scoreSpare < 26
+  let isNarrowTile = tw < 290
+  let isTightWidth = tw < 340
+  let extraSpace = max(0, scoreSpare - 46)
+  let tileGap = int(clamp(3 + extraSpace * 0.04, 3, 6))
+  let cardPadY = int(clamp(4 + extraSpace * 0.06, 4, 8))
+  let cardPadX = isNarrowTile ? 6 : 8
+  let cardGap = int(clamp(2 + extraSpace * 0.05, 2, 5))
+  let tabPadY = int(clamp(3 + extraSpace * 0.04, 3, 6))
+  let stripPadY = int(clamp(3 + extraSpace * 0.04, 3, 6))
+  let barH = scoreSpare >= 64 ? 4 : 3
+  let baseLogoPx = isCompactTile ? 22 : int(clamp(scoreSpare * 0.64, 22, 44))
+  let winBonus = int(clamp(round(baseLogoPx * 0.28), 6, 12))
+  let winLogoPx = int(min(54, baseLogoPx + winBonus))
+  let loseLogoPx = int(max(18, baseLogoPx - 4))
+  let fgHasWinner = fgIsFinal && (fgAway.winner == true || fgHome.winner == true)
+  let awayLogoPx = fgHasWinner ? (fgAway.winner == true ? winLogoPx : loseLogoPx) : baseLogoPx
+  let homeLogoPx = fgHasWinner ? (fgHome.winner == true ? winLogoPx : loseLogoPx) : baseLogoPx
+  let logoSlotH = fgHasWinner ? winLogoPx : baseLogoPx
+  let screenAwayLogoPx = fgHasWinner ? (fgAway.winner == true ? 68 : 48) : 56
+  let screenHomeLogoPx = fgHasWinner ? (fgHome.winner == true ? 68 : 48) : 56
+  let screenLogoSlotH = fgHasWinner ? 68 : 56
+  let scoreFontSize = int(clamp(20 + extraSpace * 0.08, 20, 28))
+  let centerColW = int(clamp(tw * 0.30, 86, 130))
+  let b1gTop2 = take(b1gEntries, 2)
+  let uwInTop2 = any(b1gTop2, e => (e.team.id ?? '') == '264')
+  let b1gStripTight = uwInTop2 ? take(b1gEntries, 3) : (uwStandingsEntry != null ? flatten([b1gTop2, [uwStandingsEntry]]) : b1gTop2)
+  let b1gTop1 = take(b1gEntries, 1)
+  let uwInTop1 = any(b1gTop1, e => (e.team.id ?? '') == '264')
+  let b1gStripNarrow = uwInTop1 ? take(b1gEntries, 2) : (uwStandingsEntry != null ? flatten([b1gTop1, [uwStandingsEntry]]) : b1gTop1)
+  let b1gQuickStrip = isNarrowTile ? b1gStripNarrow : (isTightWidth ? b1gStripTight : b1gStrip)
+
   component TeamLogo(id, px = 20) {
     let tid = str(id ?? '')
     if tid != '' && tid != 'null' {
@@ -273,11 +312,368 @@ widget "dawgwatch" {
     }
   }
 
+  component ScoreFeaturedCard(expand = false) {
+    Column {
+      fill: width
+      weight: expand ? 1 : 0
+      padding: [cardPadX, cardPadY]
+      radius: 8 * corners
+      background: alpha(surface, 0.6)
+      border: 1
+      borderColor: fgIsLive ? uwPurple : border
+      gap: cardGap
+
+      Row {
+        fill: width
+        align: center
+        gap: 6
+        Text {
+          text: fgIsLive ? "LIVE GAME" : (fgIsFinal ? (fgVenue != "" ? "FINAL • W${fgWeekNum ?? ''} • ${fgVenue}" : "FINAL • WEEK ${fgWeekNum ?? ''}") : (fgVenue != "" ? "W${fgWeekNum ?? ''} • ${fgVenue}" : "UPCOMING • WEEK ${fgWeekNum ?? ''}"))
+          style: small
+          bold: true
+          color: fgIsLive ? uwPurple : (fgIsFinal ? (fgUw.winner == true ? green : muted) : uwGold)
+          weight: 1
+          maxLines: 1
+        }
+        if fgIsFinal {
+          Text {
+            text: fgUw.winner == true ? "WIN" : "LOSS"
+            style: label
+            bold: true
+            color: fgUw.winner == true ? green : red
+            padding: [4, 1]
+            radius: 3
+            background: fgUw.winner == true ? alpha(green, 0.2) : alpha(red, 0.2)
+          }
+        } else if fgBroadcast != "" {
+          Text {
+            text: fgBroadcast
+            style: label
+            bold: true
+            color: foreground
+            padding: [4, 1]
+            radius: 3
+            background: alpha(uwGold, 0.25)
+          }
+        }
+      }
+
+      // Teams and scores/time
+      Row {
+        fill: width
+        weight: expand ? 1 : 0
+        align: center
+        gap: 4
+
+        // Away Team
+        Column {
+          weight: 1
+          align: center
+          gap: 1
+          Box {
+            height: logoSlotH
+            align: center
+            TeamLogo { id: fgAway.team.id; px: awayLogoPx }
+          }
+          Text {
+            text: fgAwayRank != null ? "#${fgAwayRank} ${fgAwayAbbr}" : fgAwayAbbr
+            bold: true
+            style: small
+            color: fgIsFinal && !fgAway.winner ? muted : foreground
+            align: center
+          }
+          if fgAwayRec != "" {
+            Text { text: fgAwayRec; style: label; color: muted; align: center }
+          }
+        }
+
+        // Center Score or Kickoff
+        Column {
+          align: center
+          gap: 1
+          width: centerColW
+          if fgIsPre {
+            Text { text: "VS"; style: label; color: muted; bold: true; align: center }
+            Text { text: fgKickDate; style: small; color: uwPurple; bold: true; align: center }
+            Text { text: fgKickTime; style: small; color: uwGold; align: center; bold: true }
+          } else {
+            Row {
+              gap: 6
+              align: center
+              Text {
+                text: fgAwayScore
+                fontSize: scoreFontSize
+                bold: true
+                color: fgIsFinal && !fgAway.winner ? muted : foreground
+              }
+              Text { text: "-"; fontSize: scoreFontSize; color: muted }
+              Text {
+                text: fgHomeScore
+                fontSize: scoreFontSize
+                bold: true
+                color: fgIsFinal && !fgHome.winner ? muted : foreground
+              }
+            }
+            Text {
+              text: fgStatusText
+              style: small
+              color: fgIsLive ? uwPurple : muted
+              bold: fgIsLive
+              align: center
+              maxLines: 1
+            }
+          }
+        }
+
+        // Home Team
+        Column {
+          weight: 1
+          align: center
+          gap: 1
+          Box {
+            height: logoSlotH
+            align: center
+            TeamLogo { id: fgHome.team.id; px: homeLogoPx }
+          }
+          Text {
+            text: fgHomeRank != null ? "#${fgHomeRank} ${fgHomeAbbr}" : fgHomeAbbr
+            bold: true
+            style: small
+            color: fgIsFinal && !fgHome.winner ? muted : foreground
+            align: center
+          }
+          if fgHomeRec != "" {
+            Text { text: fgHomeRec; style: label; color: muted; align: center }
+          }
+        }
+      }
+
+      // Live down & distance
+      if fgIsLive && fgDownDist != "" {
+        Row {
+          align: center
+          gap: 6
+          Text { text: "🏈 ${fgDownDist}"; style: small; bold: true; color: uwPurple }
+          if fgIsRedZone {
+            Text {
+              text: "RED ZONE"
+              style: label
+              bold: true
+              color: red
+              padding: [4, 1]
+              radius: 3
+              background: alpha(red, 0.2)
+            }
+          }
+        }
+      }
+
+      // Compact Betting Odds Strip
+      if hasOdds {
+        Box {
+          fill: width
+          padding: [6, 2]
+          radius: 5 * corners
+          background: hasLiveOdds ? alpha(red, 0.12) : alpha(background, 0.35)
+          border: hasLiveOdds ? 1 : 0
+          borderColor: alpha(red, 0.45)
+
+          Row {
+            fill: width
+            align: center
+            gap: 6
+            Text {
+              text: oddsBadgeText
+              style: label
+              bold: true
+              color: hasLiveOdds ? red : (fgIsPre || fgIsFinal ? uwGold : muted)
+            }
+            if oddsSpreadHeadline != "" {
+              Text { text: oddsSpreadHeadline; style: label; bold: true; color: foreground; maxLines: 1 }
+            }
+            if oddsOuStr != "" {
+              Text { text: "O/U ${oddsOuStr}"; style: label; color: muted; maxLines: 1 }
+            }
+            Spacer { weight: 1 }
+            if !isNarrowTile && oddsMlCompact != "" {
+              Text { text: oddsMlCompact; style: label; color: foreground; align: end; maxLines: 1 }
+            }
+          }
+        }
+      }
+
+      // Compact ESPN Percentage Odds Bar
+      if hasWinProb {
+        Column {
+          fill: width
+          gap: 1
+          Row {
+            fill: width
+            align: center
+            Text {
+              text: "${fgAwayAbbr} ${awayWinPctStr}%"
+              style: label
+              bold: !fgIsHome || awayWinPct >= homeWinPct
+              color: !fgIsHome ? uwGold : (awayWinPct >= homeWinPct ? foreground : muted)
+            }
+            Spacer { weight: 1 }
+            Text {
+              text: isNarrowTile ? (hasLiveProb ? "● LIVE" : (fgIsFinal ? "START PROB" : "WIN PROB")) : (hasLiveProb ? "● ESPN LIVE" : (fgIsFinal ? "STARTING WIN PROB" : "ESPN WIN PROB"))
+              style: label
+              bold: hasLiveProb
+              color: hasLiveProb ? red : muted
+            }
+            Spacer { weight: 1 }
+            Text {
+              text: "${fgHomeAbbr} ${homeWinPctStr}%"
+              style: label
+              bold: fgIsHome || homeWinPct >= awayWinPct
+              color: fgIsHome ? uwGold : (homeWinPct >= awayWinPct ? foreground : muted)
+            }
+          }
+          Row {
+            fill: width
+            height: barH
+            radius: 2
+            clip: true
+            gap: 2
+            Box {
+              weight: clamp(awayWinPct, 2, 98)
+              height: barH
+              background: !fgIsHome ? uwGold : alpha(muted, 0.55)
+            }
+            Box {
+              weight: clamp(homeWinPct, 2, 98)
+              height: barH
+              background: fgIsHome ? uwGold : alpha(muted, 0.55)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  component ScoreBottomStrips() {
+    Column {
+      fill: width
+      gap: tileGap
+
+      // Previous Game Summary (when featured is upcoming)
+      if fgIsPre && prevGame != null {
+        Box {
+          fill: width
+          padding: [6, stripPadY]
+          radius: 6 * corners
+          background: alpha(surface, 0.6)
+          border: 1
+          borderColor: border
+
+          Row {
+            fill: width
+            align: center
+            gap: 6
+            Text { text: "Last:"; style: small; color: muted }
+            Text {
+              text: pgWon ? "W" : "L"
+              style: small
+              bold: true
+              color: pgWon ? green : red
+              padding: [4, 1]
+              radius: 3
+              background: pgWon ? alpha(green, 0.2) : alpha(red, 0.2)
+            }
+            TeamLogo { id: pgOppId; px: 16 }
+            Text {
+              text: "${pgUwScore}-${pgOppScore} ${pgIsHome ? 'vs' : '@'} ${pgOppAbbr}"
+              style: small
+              bold: true
+            }
+            Spacer { weight: 1 }
+            Text { text: "W${prevGame.week.number} Final"; style: label; color: muted; maxLines: 1 }
+          }
+        }
+      }
+
+      // Next Upcoming Game Strip (when featured is a recent final)
+      if fgIsFinal && nextSchedGame != null {
+        Box {
+          fill: width
+          padding: [6, stripPadY]
+          radius: 6 * corners
+          background: alpha(surface, 0.6)
+          border: 1
+          borderColor: border
+
+          Row {
+            fill: width
+            align: center
+            gap: 6
+            Text { text: "Next:"; style: small; color: muted }
+            TeamLogo { id: ngOppId; px: 16 }
+            Text {
+              text: "${ngOpp.homeAway == 'home' ? '@' : 'vs'} ${ngOppLabel}"
+              style: small
+              bold: true
+            }
+            Spacer { weight: 1 }
+            Text { text: ngWhen; style: label; color: uwGold; maxLines: 1 }
+          }
+        }
+      }
+
+      // Big Ten Quick Strip (Top 3 + WASH)
+      Box {
+        fill: width
+        padding: [6, stripPadY]
+        radius: 6 * corners
+        background: alpha(surface, 0.6)
+        border: 1
+        borderColor: border
+        onTap: { haptic(); tab = "standings" }
+
+        Row {
+          fill: width
+          align: center
+          gap: 6
+
+          Text { text: "B1G"; style: label; bold: true; color: muted; width: 26 }
+
+          for entry in b1gQuickStrip key entry.team.id {
+            let isUw = (entry.team.id ?? '') == '264'
+            let rec = (entry.stats.find(s => s.name == 'overall') ?? {}).displayValue ?? '–'
+
+            Row {
+              align: center
+              gap: 3
+              TeamLogo { id: entry.team.id; px: 14 }
+              Text {
+                text: "${entry.team.abbreviation} ${rec}"
+                style: label
+                bold: isUw
+                color: isUw ? uwPurple : muted
+              }
+              if isUw {
+                Box {
+                  width: 4
+                  height: 4
+                  radius: 2
+                  background: uwGold
+                }
+              }
+            }
+          }
+          Spacer { weight: 1 }
+          Text { text: "›"; style: small; color: muted }
+        }
+      }
+    }
+  }
+
   onTap: { haptic(); screen() }
 
   Column {
-    gap: 3
-    fill: width
+    gap: tileGap
+    fill: true
 
     // Header
     Row {
@@ -329,7 +725,7 @@ widget "dawgwatch" {
       gap: 4
       Box {
         weight: 1
-        padding: [0, 3]
+        padding: [0, tabPadY]
         radius: 6 * corners
         background: tab == "score" ? alpha(uwPurple, 0.22) : alpha(surface, 0.4)
         border: 1
@@ -345,7 +741,7 @@ widget "dawgwatch" {
       }
       Box {
         weight: 1
-        padding: [0, 3]
+        padding: [0, tabPadY]
         radius: 6 * corners
         background: tab == "standings" ? alpha(uwPurple, 0.22) : alpha(surface, 0.4)
         border: 1
@@ -361,7 +757,7 @@ widget "dawgwatch" {
       }
       Box {
         weight: 1
-        padding: [0, 3]
+        padding: [0, tabPadY]
         radius: 6 * corners
         background: tab == "news" ? alpha(uwPurple, 0.22) : alpha(surface, 0.4)
         border: 1
@@ -377,7 +773,7 @@ widget "dawgwatch" {
       }
       Box {
         weight: 1
-        padding: [0, 3]
+        padding: [0, tabPadY]
         radius: 6 * corners
         background: tab == "schedule" ? alpha(uwPurple, 0.22) : alpha(surface, 0.4)
         border: 1
@@ -394,356 +790,26 @@ widget "dawgwatch" {
     }
 
     // Tab content
-    Column {
-      weight: 1
-      scroll: true
-      onPull: refresh()
-      gap: 3
-
-      if tab == "score" {
-        // Featured Game Card (Upcoming or Live)
-        Box {
-          fill: width
-          padding: [8, 4]
-          radius: 8 * corners
-          background: alpha(surface, 0.6)
-          border: 1
-          borderColor: fgIsLive ? uwPurple : border
-
-          Column {
-            gap: 2
-            fill: width
-
-            Row {
-              fill: width
-              align: center
-              gap: 6
-              Text {
-                text: fgIsLive ? "LIVE GAME" : (fgIsFinal ? (fgVenue != "" ? "FINAL • W${fgWeekNum ?? ''} • ${fgVenue}" : "FINAL • WEEK ${fgWeekNum ?? ''}") : (fgVenue != "" ? "W${fgWeekNum ?? ''} • ${fgVenue}" : "UPCOMING • WEEK ${fgWeekNum ?? ''}"))
-                style: small
-                bold: true
-                color: fgIsLive ? uwPurple : (fgIsFinal ? (fgUw.winner == true ? green : muted) : uwGold)
-                weight: 1
-                maxLines: 1
-              }
-              if fgIsFinal {
-                Text {
-                  text: fgUw.winner == true ? "WIN" : "LOSS"
-                  style: label
-                  bold: true
-                  color: fgUw.winner == true ? green : red
-                  padding: [4, 1]
-                  radius: 3
-                  background: fgUw.winner == true ? alpha(green, 0.2) : alpha(red, 0.2)
-                }
-              } else if fgBroadcast != "" {
-                Text {
-                  text: fgBroadcast
-                  style: label
-                  bold: true
-                  color: foreground
-                  padding: [4, 1]
-                  radius: 3
-                  background: alpha(uwGold, 0.25)
-                }
-              }
-            }
-
-            // Teams and scores/time
-            Row {
-              fill: width
-              align: center
-              gap: 4
-
-              // Away Team
-              Column {
-                weight: 1
-                align: center
-                gap: 1
-                TeamLogo { id: fgAway.team.id; px: 22 }
-                Text {
-                  text: fgAwayRank != null ? "#${fgAwayRank} ${fgAwayAbbr}" : fgAwayAbbr
-                  bold: true
-                  style: small
-                  color: fgIsFinal && !fgAway.winner ? muted : foreground
-                  align: center
-                }
-                if fgAwayRec != "" {
-                  Text { text: fgAwayRec; style: label; color: muted; align: center }
-                }
-              }
-
-              // Center Score or Kickoff
-              Column {
-                align: center
-                gap: 1
-                width: 120
-                if fgIsPre {
-                  Text { text: "VS"; style: label; color: muted; bold: true; align: center }
-                  Text { text: fgKickDate; style: small; color: uwPurple; bold: true; align: center }
-                  Text { text: fgKickTime; style: small; color: uwGold; align: center; bold: true }
-                } else {
-                  Row {
-                    gap: 6
-                    align: center
-                    Text {
-                      text: fgAwayScore
-                      style: title
-                      bold: true
-                      color: fgIsFinal && !fgAway.winner ? muted : foreground
-                    }
-                    Text { text: "-"; style: title; color: muted }
-                    Text {
-                      text: fgHomeScore
-                      style: title
-                      bold: true
-                      color: fgIsFinal && !fgHome.winner ? muted : foreground
-                    }
-                  }
-                  Text {
-                    text: fgStatusText
-                    style: small
-                    color: fgIsLive ? uwPurple : muted
-                    bold: fgIsLive
-                    align: center
-                    maxLines: 1
-                  }
-                }
-              }
-
-              // Home Team
-              Column {
-                weight: 1
-                align: center
-                gap: 1
-                TeamLogo { id: fgHome.team.id; px: 22 }
-                Text {
-                  text: fgHomeRank != null ? "#${fgHomeRank} ${fgHomeAbbr}" : fgHomeAbbr
-                  bold: true
-                  style: small
-                  color: fgIsFinal && !fgHome.winner ? muted : foreground
-                  align: center
-                }
-                if fgHomeRec != "" {
-                  Text { text: fgHomeRec; style: label; color: muted; align: center }
-                }
-              }
-            }
-
-            // Live down & distance
-            if fgIsLive && fgDownDist != "" {
-              Row {
-                align: center
-                gap: 6
-                Text { text: "🏈 ${fgDownDist}"; style: small; bold: true; color: uwPurple }
-                if fgIsRedZone {
-                  Text {
-                    text: "RED ZONE"
-                    style: label
-                    bold: true
-                    color: red
-                    padding: [4, 1]
-                    radius: 3
-                    background: alpha(red, 0.2)
-                  }
-                }
-              }
-            }
-
-            // Compact Betting Odds Strip
-            if hasOdds {
-              Box {
-                fill: width
-                padding: [6, 2]
-                radius: 5 * corners
-                background: hasLiveOdds ? alpha(red, 0.12) : alpha(background, 0.35)
-                border: hasLiveOdds ? 1 : 0
-                borderColor: alpha(red, 0.45)
-
-                Row {
-                  fill: width
-                  align: center
-                  gap: 6
-                  Text {
-                    text: oddsBadgeText
-                    style: label
-                    bold: true
-                    color: hasLiveOdds ? red : (fgIsPre || fgIsFinal ? uwGold : muted)
-                  }
-                  if oddsSpreadHeadline != "" {
-                    Text { text: oddsSpreadHeadline; style: label; bold: true; color: foreground; maxLines: 1 }
-                  }
-                  if oddsOuStr != "" {
-                    Text { text: "O/U ${oddsOuStr}"; style: label; color: muted; maxLines: 1 }
-                  }
-                  Spacer { weight: 1 }
-                  if oddsMlCompact != "" {
-                    Text { text: oddsMlCompact; style: label; color: foreground; align: end; maxLines: 1 }
-                  }
-                }
-              }
-            }
-
-            // Compact ESPN Percentage Odds Bar
-            if hasWinProb {
-              Column {
-                fill: width
-                gap: 1
-                Row {
-                  fill: width
-                  align: center
-                  Text {
-                    text: "${fgAwayAbbr} ${awayWinPctStr}%"
-                    style: label
-                    bold: !fgIsHome || awayWinPct >= homeWinPct
-                    color: !fgIsHome ? uwGold : (awayWinPct >= homeWinPct ? foreground : muted)
-                  }
-                  Spacer { weight: 1 }
-                  Text {
-                    text: hasLiveProb ? "● ESPN LIVE" : (fgIsFinal ? "STARTING WIN PROB" : "ESPN WIN PROB")
-                    style: label
-                    bold: hasLiveProb
-                    color: hasLiveProb ? red : muted
-                  }
-                  Spacer { weight: 1 }
-                  Text {
-                    text: "${fgHomeAbbr} ${homeWinPctStr}%"
-                    style: label
-                    bold: fgIsHome || homeWinPct >= awayWinPct
-                    color: fgIsHome ? uwGold : (homeWinPct >= awayWinPct ? foreground : muted)
-                  }
-                }
-                Row {
-                  fill: width
-                  height: 3
-                  radius: 2
-                  clip: true
-                  gap: 2
-                  Box {
-                    weight: clamp(awayWinPct, 2, 98)
-                    height: 3
-                    background: !fgIsHome ? uwGold : alpha(muted, 0.55)
-                  }
-                  Box {
-                    weight: clamp(homeWinPct, 2, 98)
-                    height: 3
-                    background: fgIsHome ? uwGold : alpha(muted, 0.55)
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        // Previous Game Summary (when featured is upcoming)
-        if fgIsPre && prevGame != null {
-          Box {
-            fill: width
-            padding: [6, 3]
-            radius: 6 * corners
-            background: alpha(surface, 0.6)
-            border: 1
-            borderColor: border
-
-            Row {
-              fill: width
-              align: center
-              gap: 6
-              Text { text: "Last:"; style: small; color: muted }
-              Text {
-                text: pgWon ? "W" : "L"
-                style: small
-                bold: true
-                color: pgWon ? green : red
-                padding: [4, 1]
-                radius: 3
-                background: pgWon ? alpha(green, 0.2) : alpha(red, 0.2)
-              }
-              TeamLogo { id: pgOppId; px: 16 }
-              Text {
-                text: "${pgUwScore}-${pgOppScore} ${pgIsHome ? 'vs' : '@'} ${pgOppAbbr}"
-                style: small
-                bold: true
-              }
-              Spacer { weight: 1 }
-              Text { text: "W${prevGame.week.number} Final"; style: label; color: muted; maxLines: 1 }
-            }
-          }
-        }
-
-        // Next Upcoming Game Strip (when featured is a recent final)
-        if fgIsFinal && nextSchedGame != null {
-          Box {
-            fill: width
-            padding: [6, 3]
-            radius: 6 * corners
-            background: alpha(surface, 0.6)
-            border: 1
-            borderColor: border
-
-            Row {
-              fill: width
-              align: center
-              gap: 6
-              Text { text: "Next:"; style: small; color: muted }
-              TeamLogo { id: ngOppId; px: 16 }
-              Text {
-                text: "${ngOpp.homeAway == 'home' ? '@' : 'vs'} ${ngOppLabel}"
-                style: small
-                bold: true
-              }
-              Spacer { weight: 1 }
-              Text { text: ngWhen; style: label; color: uwGold; maxLines: 1 }
-            }
-          }
-        }
-
-        // Big Ten Quick Strip (Top 3 + WASH)
-        Box {
-          fill: width
-          padding: [6, 3]
-          radius: 6 * corners
-          background: alpha(surface, 0.6)
-          border: 1
-          borderColor: border
-          onTap: { haptic(); tab = "standings" }
-
-          Row {
-            fill: width
-            align: center
-            gap: 6
-
-            Text { text: "B1G"; style: label; bold: true; color: muted; width: 26 }
-
-            for entry in b1gStrip key entry.team.id {
-              let isUw = (entry.team.id ?? '') == '264'
-              let rec = (entry.stats.find(s => s.name == 'overall') ?? {}).displayValue ?? '–'
-
-              Row {
-                align: center
-                gap: 3
-                TeamLogo { id: entry.team.id; px: 14 }
-                Text {
-                  text: "${entry.team.abbreviation} ${rec}"
-                  style: label
-                  bold: isUw
-                  color: isUw ? uwPurple : muted
-                }
-                if isUw {
-                  Box {
-                    width: 4
-                    height: 4
-                    radius: 2
-                    background: uwGold
-                  }
-                }
-              }
-            }
-            Spacer { weight: 1 }
-            Text { text: "›"; style: small; color: muted }
-          }
-        }
+    if tab == "score" && !isCompactTile {
+      Column {
+        weight: 1
+        fill: width
+        gap: tileGap
+        ScoreFeaturedCard { expand: true }
+        ScoreBottomStrips {}
       }
+    } else {
+      Column {
+        weight: 1
+        fill: width
+        scroll: true
+        onPull: refresh()
+        gap: tileGap
+
+        if tab == "score" {
+          ScoreFeaturedCard { expand: false }
+          ScoreBottomStrips {}
+        }
 
       if tab == "standings" {
         Box {
@@ -970,6 +1036,7 @@ widget "dawgwatch" {
         }
       }
     }
+    }
   }
 
   // Full-screen Game Center
@@ -1122,11 +1189,16 @@ widget "dawgwatch" {
                   weight: 1
                   align: center
                   gap: 4
-                  TeamLogo { id: fgAway.team.id; px: 56 }
+                  Box {
+                    height: screenLogoSlotH
+                    align: center
+                    TeamLogo { id: fgAway.team.id; px: screenAwayLogoPx }
+                  }
                   Text {
                     text: fgAwayRank != null ? "#${fgAwayRank} ${fgAwayName}" : fgAwayName
                     style: body
                     bold: true
+                    color: fgHasWinner && !fgAway.winner ? muted : foreground
                     align: center
                     maxLines: 1
                   }
@@ -1156,12 +1228,14 @@ widget "dawgwatch" {
                         text: fgAwayScore
                         style: huge
                         bold: true
+                        color: fgHasWinner && !fgAway.winner ? muted : foreground
                       }
                       Text { text: "-"; style: huge; color: muted }
                       Text {
                         text: fgHomeScore
                         style: huge
                         bold: true
+                        color: fgHasWinner && !fgHome.winner ? muted : foreground
                       }
                     }
                     Text {
@@ -1189,11 +1263,16 @@ widget "dawgwatch" {
                   weight: 1
                   align: center
                   gap: 4
-                  TeamLogo { id: fgHome.team.id; px: 56 }
+                  Box {
+                    height: screenLogoSlotH
+                    align: center
+                    TeamLogo { id: fgHome.team.id; px: screenHomeLogoPx }
+                  }
                   Text {
                     text: fgHomeRank != null ? "#${fgHomeRank} ${fgHomeName}" : fgHomeName
                     style: body
                     bold: true
+                    color: fgHasWinner && !fgHome.winner ? muted : foreground
                     align: center
                     maxLines: 1
                   }
