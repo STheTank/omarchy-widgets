@@ -1,0 +1,416 @@
+widget "piranha tank" {
+  meta { owl: 23; description: "A pixel-art piranha tank in your theme's colors. Tap the water to drop in a mouse or a frog, and watch the frenzy"; version: "1.0"; license: "MIT"; category: "fun" }
+  size: 6x3
+  minSize: 2x2
+  padding: 0
+  // Idle they patrol slowly; a frenzy needs every frame it can get.
+  fps: frenzy ? 30 : modes.saver ? 6 : 12
+  source modes = android.modes
+
+  // The koi pond's look, with a simulation instead of planned routes: every
+  // frame turns each piranha toward its prey (or a wandering point) at the
+  // rate it can turn, swims it forward, and lays its body along where its
+  // head has been. A tap drops a mouse or a frog into the water; they paddle
+  // for their lives, and each bite takes a chunk until only bones are left.
+
+  state gt = 0
+  state fish = range(4).map(i => {
+    x: 60 + i * 70, y: 50 + (i % 2) * 70, a: random() * 6.283, v: 20,
+    wx: 60 + random() * 240, wy: 40 + random() * 120,
+    trail: [], cd: 0, chomp: -10, ph: random() * 6, dart: 0, gape: false, big: i == 0 ? 1 : 0
+  })
+  state prey = []
+  state bits = []
+  state bones = []
+  state splashes = []
+  state nextId = 0
+  state eaten = 0 persist
+  state lastKill = -10
+  // How many piranhas swim; tap the lily pad to change it.
+  state count = 2 persist
+  state countAt = -10
+
+  let W = tileWidth ?? 300
+  let H = tileHeight ?? 200
+  // One art pixel, in dp, as the koi have it; critters are drawn a bit finer.
+  let p = clamp(round(min(W, H) / 70), 2, 5)
+  let pp = max(round(p * 0.9), 2)
+  let ds = 1.5 * p
+  // Body half-width per segment in art pixels, head first: deep, blunt, short.
+  let profile = [2, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 1, 1, 0]
+  let L = len(profile)
+  let frenzy = len(prey) > 0 || len(bits) > 0 || len(splashes) > 0 || gt - countAt < 1.5
+
+  let steel = mix(mix(foreground, blue, 0.35), background, 0.3)
+  let flank = mix(red, orange, 0.2)
+  let finC = mix(steel, background, 0.25)
+  let eyeC = mix(yellow, foreground, 0.15)
+
+  // Critters, facing right; the left-facing ones are mirrored from these.
+  let mouseRA = [
+    "...f.....pp...",
+    "..ggggggggpp..",
+    ".gggddddddgkg.",
+    "ggggddddddgggp",
+    ".gggddddddgkg.",
+    "..ggggggggpp..",
+    ".......f.pp..."
+  ]
+  let mouseRB = [
+    ".......f.pp...",
+    "..ggggggggpp..",
+    ".gggddddddgkg.",
+    "ggggddddddgggp",
+    ".gggddddddgkg.",
+    "..ggggggggpp..",
+    "...f.....pp..."
+  ]
+  let frogRT = [
+    "...GGG.........",
+    "..G...GG...L...",
+    "..GG.GGGGGeeL..",
+    "....GGGLLGGekG.",
+    "...GGGLLLLGGGG.",
+    "...GGLLLLLGGGGG",
+    "...GGGLLLLGGGG.",
+    "....GGGLLGGekG.",
+    "..GG.GGGGGeeL..",
+    "..G...GG...L...",
+    "...GGG........."
+  ]
+  let frogRK = [
+    "...............",
+    "...........L...",
+    "GG...GGGGGeeL..",
+    ".GGGGGGLLGGekG.",
+    "...GGGLLLLGGGG.",
+    "...GGLLLLLGGGGG",
+    "...GGGLLLLGGGG.",
+    ".GGGGGGLLGGekG.",
+    "GG...GGGGGeeL..",
+    "...........L...",
+    "..............."
+  ]
+  let boneR = [
+    "..b..b..b..bb.",
+    "...b..b..b.bbb",
+    "bbbbbbbbbbbb.b",
+    "...b..b..b.bbb",
+    "..b..b..b..bb."
+  ]
+  let skull = [".bbb.", "bbbbb", "b.b.b", ".bbb.", ".b.b."]
+  let mouseLA = mouseRA.map(r => join(reverse(split(r, "")), ""))
+  let mouseLB = mouseRB.map(r => join(reverse(split(r, "")), ""))
+  let frogLT = frogRT.map(r => join(reverse(split(r, "")), ""))
+  let frogLK = frogRK.map(r => join(reverse(split(r, "")), ""))
+  let boneL = boneR.map(r => join(reverse(split(r, "")), ""))
+  let pink = mix(red, foreground, 0.55)
+  let critters = {
+    g: mix(foreground, muted, 0.45), d: mix(muted, background, 0.2), p: pink, f: pink, k: background,
+    G: mix(green, background, 0.15), L: mix(green, yellow, 0.45), e: mix(yellow, foreground, 0.3)
+  }
+  let chewed = merge(critters, {d: mix(red, muted, 0.3), L: mix(red, green, 0.35)})
+
+  every frame {
+    gt = gt + dt
+    let m = 6 * p
+
+    // The critters paddle: a mouse steadily (faster once bitten), a frog in kicks.
+    prey = prey.map(q => gt - q.born < 0.35 ? q :
+      [q.kind == "mouse" ? (gt - q.hit < 1.5 ? 17 : 9) * p * (0.7 + 0.3 * sin((gt - q.born) * 9)) : 34 * p * pow(max(sin((gt - q.born) * 4), 0), 2)]
+        .map(s => [q.x + q.dir * s * dt, q.y + q.vy * dt])
+        .map(n => merge(q, {
+          x: clamp(n[0], m, W - m), y: clamp(n[1], m, H - m),
+          dir: n[0] < m ? 1 : (n[0] > W - m ? -1 : q.dir),
+          vy: n[1] < m ? abs(q.vy) : (n[1] > H - m ? -abs(q.vy) : q.vy)
+        }))[0])
+
+    // Each piranha picks the nearest critter in the water, or its own wandering point.
+    let sch = take(fish, count)
+    let landed = prey.filter(q => gt - q.born >= 0.35)
+    let tg = sch.map(f => landed.sortBy(q => pow(q.x - f.x, 2) + pow(q.y - f.y, 2))[0])
+    let hunting = tg.map(t => t != null)
+    let tx = sch.map((f, i) => hunting[i] ? tg[i].x : f.wx)
+    let ty = sch.map((f, i) => hunting[i] ? tg[i].y : f.wy)
+    let td = sch.map((f, i) => max(sqrt(pow(tx[i] - f.x, 2) + pow(ty[i] - f.y, 2)), 0.001))
+    // Keep a little apart from each other, less so in a frenzy.
+    let sep = sch.map((f, i) => [
+      sum(sch.map((o, j) => j == i ? 0 : [max(sqrt(pow(f.x - o.x, 2) + pow(f.y - o.y, 2)), 0.5)].map(d => d > 14 * p ? 0 : (f.x - o.x) / d * (1 - d / (14 * p)))[0])),
+      sum(sch.map((o, j) => j == i ? 0 : [max(sqrt(pow(f.x - o.x, 2) + pow(f.y - o.y, 2)), 0.5)].map(d => d > 14 * p ? 0 : (f.y - o.y) / d * (1 - d / (14 * p)))[0]))
+    ])
+    let sw = sch.map((f, i) => hunting[i] ? 0.5 : 1.4)
+    let des = sch.map((f, i) => atan2((ty[i] - f.y) / td[i] + sep[i][1] * sw[i], (tx[i] - f.x) / td[i] + sep[i][0] * sw[i]))
+    let close = sch.map((f, i) => hunting[i] && td[i] < 16 * p)
+    let rate = sch.map((f, i) => close[i] ? 11 : (hunting[i] ? 6.5 : (f.dart > 0 ? 4 : 1.8)))
+    let goal = sch.map((f, i) => f.cd > 0.2 ? 6 * p : (close[i] ? 30 * p : (hunting[i] ? 60 * p : (f.dart > 0 ? 42 * p : (7 + 2 * f.big) * p))))
+    let na = sch.map((f, i) => f.a + clamp(atan2(sin(des[i] - f.a), cos(des[i] - f.a)), -rate[i] * dt, rate[i] * dt))
+    let nv = sch.map((f, i) => lerp(f.v, goal[i], 1 - pow(hunting[i] ? 0.003 : 0.15, dt)))
+    let nx = sch.map((f, i) => clamp(f.x + cos(na[i]) * nv[i] * dt, 3 * p, W - 3 * p))
+    let ny = sch.map((f, i) => clamp(f.y + sin(na[i]) * nv[i] * dt, 3 * p, H - 3 * p))
+    let mouth = sch.map((f, i) => [nx[i] + cos(na[i]) * 4 * p, ny[i] + sin(na[i]) * 4 * p])
+    let bite = sch.map((f, i) => f.cd > 0 ? null : landed.find(q => pow(q.x - mouth[i][0], 2) + pow(q.y - mouth[i][1], 2) < pow(6 * p, 2)))
+    let repick = sch.map((f, i) => !hunting[i] && (td[i] < 12 * p || random() < 0.2 * dt))
+
+    fish = sch.map((f, i) => [len(f.trail) < L ? range(L).map(k => [nx[i] - cos(na[i]) * ds * (k + 1), ny[i] - sin(na[i]) * ds * (k + 1)]) : f.trail]
+      .map(tr => [tr, max(sqrt(pow(nx[i] - tr[0][0], 2) + pow(ny[i] - tr[0][1], 2)), 0.001)])
+      .map(w => [w[0], w[1], min(floor(w[1] / ds), L)])
+      .map(w => w[2] < 1 ? w[0] : take(range(w[2]).map(j => w[2] - j).map(j => [lerp(w[0][0][0], nx[i], j * ds / w[1]), lerp(w[0][0][1], ny[i], j * ds / w[1])]) + w[0], L))
+      .map(tr => {
+        x: nx[i], y: ny[i], a: na[i], v: bite[i] != null ? nv[i] * 0.2 : nv[i], trail: tr, big: f.big,
+        wx: repick[i] ? m + random() * (W - 2 * m) : f.wx, wy: repick[i] ? m + random() * (H - 2 * m) : f.wy,
+        cd: bite[i] != null ? 0.3 + random() * 0.25 : max(f.cd - dt, 0),
+        chomp: bite[i] != null ? gt : f.chomp,
+        ph: f.ph + dt * (5 + nv[i] / p * 0.4),
+        dart: f.dart > 0 ? f.dart - dt : (!hunting[i] && random() < 0.08 * dt ? 0.5 : 0),
+        gape: close[i] && f.cd <= 0
+      })[0]) + drop(fish, count)
+
+    // Particles drift and fade: blood spreads and slows, foam fizzes out.
+    bits = bits.map(b => merge(b, {x: b.x + b.vx * dt, y: b.y + b.vy * dt, vx: b.vx * (1 - 3 * dt), vy: b.vy * (1 - 3 * dt), life: b.life - dt})).filter(b => b.life > 0)
+    splashes = splashes.filter(s => gt - s.t < 2)
+    bones = bones.filter(b => gt - b.t < 7)
+
+    // Bites: a chunk off the critter, a jolt, and a puff of blood and foam.
+    let bitten = flatten(bite.map((b, i) => b == null ? [] : [{id: b.id, x: mouth[i][0], y: mouth[i][1]}]))
+    if len(bitten) > 0 {
+      prey = prey.map(q => [count(bitten, b => b.id == q.id)].map(n => n == 0 ? q : merge(q, {
+        hp: q.hp - n, hit: gt,
+        x: clamp(q.x + (random() - 0.5) * 5 * p, m, W - m), y: clamp(q.y + (random() - 0.5) * 5 * p, m, H - m),
+        dir: q.kind == "mouse" && random() < 0.35 ? -q.dir : q.dir
+      }))[0])
+      let puff = bits + flatten(bitten.map(b => range(7).map(j => [random() * 6.283, (8 + random() * 26) * p, 0.7 + random() * 1.3].map(a => {
+        x: b.x, y: b.y, vx: cos(a[0]) * a[1], vy: sin(a[0]) * a[1], life: a[2], m0: a[2], s: 1 + random(0, 1), c: j < 5 ? 0 : 1
+      })[0])))
+      bits = drop(puff, max(0, len(puff) - 180))
+    }
+
+    // Eaten: bones sink, and the water clouds red.
+    let dead = prey.filter(q => q.hp <= 0)
+    if len(dead) > 0 {
+      prey = prey.filter(q => q.hp > 0)
+      let more = bones + dead.map(q => {x: q.x, y: q.y, t: gt, dir: q.dir})
+      bones = drop(more, max(0, len(more) - 6))
+      let cloud = bits + flatten(dead.map(q => range(18).map(j => [random() * 6.283, (4 + random() * 22) * p, 1.5 + random() * 2.5].map(a => {
+        x: q.x, y: q.y, vx: cos(a[0]) * a[1], vy: sin(a[0]) * a[1], life: a[2], m0: a[2], s: 1 + random(0, 2), c: 0
+      })[0])))
+      bits = drop(cloud, max(0, len(cloud) - 180))
+      eaten = eaten + len(dead)
+      lastKill = gt
+    }
+  }
+
+  // The lily pad, as the koi pond has it: worked out once per tile size.
+  let leaf = mix(mix(green, foreground, 0.3), background, 0.3)
+  let pad = [floor(W * 0.66 / p), floor(H * 0.38 / p), round(0.13 * min(W, H) / p)]
+  let slope = 0.8
+  let padRects = flatten([
+    range(1 - pad[2], pad[2]).map(j => [j, floor(sqrt(pad[2] * pad[2] - j * j) + 0.5), pad[0] + round(slope * j), 1 + floor(j * 1.5 / pad[2])])
+      .map(r => r[0] > 0 ?
+        [[(pad[0] - r[1]) * p, (pad[1] + r[0]) * p, max(r[2] - pad[0] + r[1], 0) * p, p + 0.5, leaf],
+         [(r[2] + r[3]) * p, (pad[1] + r[0]) * p, max(pad[0] + r[1] - r[2] - r[3] + 1, 0) * p, p + 0.5, leaf]] :
+        [[(pad[0] - r[1]) * p, (pad[1] + r[0]) * p, (2 * r[1] + 1) * p, p + 0.5, leaf]]),
+    range(0, pad[2]).map(j => [j, floor(sqrt(pad[2] * pad[2] - j * j) + 0.5), j + 1 < pad[2] ? floor(sqrt(pad[2] * pad[2] - (j + 1) * (j + 1)) + 0.5) : -1])
+      .filter(r => r[2] < r[1])
+      .map(r => [[(pad[0] - r[1]) * p, (pad[1] + r[0] + 1) * p, (r[1] - r[2]) * p, p, mix(leaf, background, 0.5)],
+                 [(pad[0] + r[2] + 1) * p, (pad[1] + r[0] + 1) * p, (r[1] - r[2]) * p, p, mix(leaf, background, 0.5)]]),
+    [[-1, slope], [-slope, -1], [1, -slope]].map(v => range(3, pad[2] - 2).map(r => [(pad[0] + round(v[0] * r / sqrt(1 + slope * slope))) * p, (pad[1] + round(v[1] * r / sqrt(1 + slope * slope))) * p, p, p, mix(leaf, background, 0.1)])),
+    [range(-3, 4).map(q => [(pad[0] + round(cos(rad(q * 9 - 115)) * (pad[2] - 2))) * p, (pad[1] + round(sin(rad(q * 9 - 115)) * (pad[2] - 2))) * p, p, p, mix(leaf, foreground, 0.2)])]
+  ].map(group => flatten(group)))
+
+  // How much blood is in the water, for the red murk.
+  let murk = min(count(bits, b => b.c == 0) / 60, 1)
+
+  Canvas {
+    onTap: {
+      if pow(x - (pad[0] * p + round(sin(time * 0.07) * 2) * p), 2) + pow(y - pad[1] * p, 2) < pow((pad[2] + 1) * p, 2) {
+        count = count % 4 + 1
+        countAt = gt
+        haptic("light")
+      } else if len(prey) < 5 {
+        let kind = random() < 0.5 ? "mouse" : "frog"
+        let dx = clamp(x, 8 * p, W - 8 * p)
+        let dy = clamp(y, 8 * p, H - 8 * p)
+        prey = prey + [{
+          id: nextId, kind: kind, x: dx, y: dy, born: gt, hit: -10,
+          dir: kind == "mouse" ? (dx < W / 2 ? -1 : 1) : (random() < 0.5 ? -1 : 1),
+          vy: (random() - 0.5) * 8 * p, hp: kind == "mouse" ? 7 : 6, max: kind == "mouse" ? 7 : 6
+        }]
+        nextId = nextId + 1
+        splashes = splashes + [{x: dx, y: dy, t: gt + 0.35}]
+        haptic("light")
+      }
+    }
+
+    clip(0, 0, width, height) {
+      if murk > 0 {
+        rect(0, 0, width, height, fill: alpha(red, 0.09 * murk))
+      }
+
+      // Bones of the fallen, sinking out of sight.
+      for b in bones {
+        let fade = clamp(1 - (gt - b.t) / 7, 0, 1)
+        sprite(b.dir > 0 ? boneR : boneL, b.x - 7 * pp, b.y - 2.5 * pp + (gt - b.t) * p * 0.6, pp, palette: {b: alpha(foreground, 0.6 * fade)})
+      }
+
+      // The critters: falling in, then paddling.
+      for q in prey {
+        let age = gt - q.born
+        let fall = clamp(age / 0.35, 0, 1)
+        let z = pp * (1 + 1.3 * (1 - fall))
+        let shake = gt - q.hit < 0.18 ? sin(gt * 80) * p : 0
+        let kick = q.kind == "frog" ? sin(age * 4) > 0.25 : floor(age * 7) % 2 == 0
+        let art = q.kind == "mouse" ? (q.dir > 0 ? (kick ? mouseRA : mouseRB) : (kick ? mouseLA : mouseLB)) : (q.dir > 0 ? (kick ? frogRK : frogRT) : (kick ? frogLK : frogLT))
+        let aw = len(art[0])
+        let ah = len(art)
+        let ox = q.x + shake - aw * z / 2
+        let oy = q.y - ah * z / 2 - (1 - fall) * 10 * p
+        if fall < 1 {
+          rect(floor((q.x - aw * pp / 2) / pp) * pp, floor((q.y - pp) / pp) * pp, aw * pp, 2 * pp, fill: alpha(background, 0.5 * fall))
+        }
+        if q.kind == "mouse" {
+          for j in range(1, 8) {
+            rect(floor((q.x + shake - q.dir * (aw * z / 2 + (j - 0.5) * z)) / z) * z, floor((oy + ah * z / 2 + round(sin(age * 10 - j * 0.8) * 1.3) * z) / z) * z, z, z, fill: pink)
+          }
+        }
+        if fall >= 1 && age < 1.2 {
+          // Ripples where it paddles in
+          for r in range(10) {
+            let ra = rad(r * 36 + age * 40)
+            rect(floor((q.x + cos(ra) * (aw / 2 + 2) * pp) / p) * p, floor((q.y + sin(ra) * (ah / 2 + 2) * pp) / p) * p, p, p, fill: alpha(foreground, 0.25 * (1.2 - age)))
+          }
+        }
+        sprite(art, ox, oy, z, palette: q.hp * 2 <= q.max ? chewed : critters)
+      }
+
+      // The piranhas, each in three passes so the segments don't cover one another:
+      // fins and red flanks, then the steel back along it, then eyes and teeth.
+      for f, i in take(fish, count) {
+        let body = take([[f.x, f.y]] + f.trail, L + 1)
+        let sway = sin(f.ph)
+        let snap = clamp(1 - (gt - f.chomp) / 0.18, 0, 1)
+        let seg = range(L - 1, -1, -1).map(k => [[body[max(k - 1, 0)][0] - body[k + 1][0], body[max(k - 1, 0)][1] - body[k + 1][1]]]
+          .map(v => [k, body[k][0], body[k][1], v[0] / max(sqrt(v[0] * v[0] + v[1] * v[1]), 0.001), v[1] / max(sqrt(v[0] * v[0] + v[1] * v[1]), 0.001), profile[k] + (f.big > 0 && k > 1 && k < 7 ? 1 : 0)])[0])
+
+        for sg in seg {
+          let k = sg[0]
+          let x = sg[1]
+          let y = sg[2]
+          let hx = sg[3]
+          let hy = sg[4]
+          let h = sg[5]
+          let px = floor(x / p) * p
+          let py = floor(y / p) * p
+          if k == L - 1 {
+            // A forked tail, dark-tipped, beating faster the faster it swims.
+            for j in range(1, 7) {
+              for side in [-1, 1] {
+                let spread = j * 0.85 * side + sway * j * 0.45
+                rect(floor((x - hx * j * p * 0.9 - hy * spread * p) / p) * p, floor((y - hy * j * p * 0.9 + hx * spread * p) / p) * p, (j < 4 ? 2 : 1) * p, (j < 4 ? 2 : 1) * p, fill: j >= 5 ? mix(finC, background, 0.5) : finC)
+              }
+            }
+          }
+          if k == 2 {
+            // Pectoral fins, red like the belly.
+            for side in [-1, 1] {
+              for j in range(1, 3) {
+                let out = h + j * 1.1 + sway * 0.4 * side
+                rect(floor((x - hy * side * out * p - hx * (j * 1.3) * p) / p) * p, floor((y + hx * side * out * p - hy * (j * 1.3) * p) / p) * p, (3 - j % 2) * p, (2 - j % 2) * p, fill: mix(flank, background, 0.3))
+              }
+            }
+          }
+          if h > 0 {
+            rect(px - h * p, py - (h - 1) * p, (2 * h + 1) * p + 0.5, (2 * h - 1) * p + 0.5, fill: flank)
+            rect(px - (h - 1) * p, py - h * p, (2 * h - 1) * p + 0.5, (2 * h + 1) * p + 0.5, fill: flank)
+          } else {
+            rect(px, py, p, p, fill: flank)
+          }
+        }
+
+        for sg in seg {
+          let k = sg[0]
+          let b = sg[5] - 2
+          let px = floor(sg[1] / p) * p
+          let py = floor(sg[2] / p) * p
+          if b >= 2 {
+            rect(px - b * p, py - (b - 1) * p, (2 * b + 1) * p + 0.5, (2 * b - 1) * p + 0.5, fill: steel)
+            rect(px - (b - 1) * p, py - b * p, (2 * b - 1) * p + 0.5, (2 * b + 1) * p + 0.5, fill: steel)
+          } else if b == 1 {
+            rect(px - p, py, 3 * p, p, fill: steel)
+            rect(px, py - p, p, 3 * p, fill: steel)
+          }
+        }
+
+        for sg in seg {
+          let k = sg[0]
+          let x = sg[1]
+          let y = sg[2]
+          let hx = sg[3]
+          let hy = sg[4]
+          let h = sg[5]
+          if k >= 2 && k <= 8 {
+            // The dark ridge down the back, and silver flecks either side.
+            rect(floor(x / p) * p, floor(y / p) * p, p, p, fill: finC)
+            if k % 2 == 1 && h >= 4 {
+              rect(floor((x - hy * 1.6 * p * (k % 4 == 1 ? 1 : -1)) / p) * p, floor((y + hx * 1.6 * p * (k % 4 == 1 ? 1 : -1)) / p) * p, p, p, fill: mix(steel, foreground, 0.55))
+            }
+          }
+          if k == 0 {
+            // Glowing eyes, and the jaw: an underbite of teeth that gapes near prey and snaps shut on a bite.
+            for side in [-1, 1] {
+              rect(floor((x + hx * 0.8 * p - hy * side * 1.6 * p) / p) * p, floor((y + hy * 0.8 * p + hx * side * 1.6 * p) / p) * p, p, p, fill: eyeC)
+            }
+            let open = f.gape && snap == 0 ? 1.2 : 0
+            let jaw = h + 0.6 + open
+            if open > 0 {
+              for s in range(-1, 2) {
+                rect(floor((x + hx * (h + 0.6) * p - hy * s * p) / p) * p, floor((y + hy * (h + 0.6) * p + hx * s * p) / p) * p, p, p, fill: mix(red, background, 0.6))
+              }
+            }
+            for s in range(-2, 3) {
+              rect(floor((x + hx * (jaw - abs(s) * 0.4) * p - hy * s * p) / p) * p, floor((y + hy * (jaw - abs(s) * 0.4) * p + hx * s * p) / p) * p, p, p, fill: (s + 2) % 2 == 0 ? foreground : flank)
+            }
+          }
+        }
+      }
+
+      // Blood and foam over everything.
+      for b in bits {
+        let s = round(b.s * (1 + (1 - b.life / b.m0) * 1.5)) * p
+        rect(floor((b.x - s / 2) / p) * p, floor((b.y - s / 2) / p) * p, s, s, fill: b.c == 0 ? alpha(mix(red, background, 0.15), 0.65 * b.life / b.m0) : alpha(foreground, 0.55 * b.life / b.m0))
+      }
+
+      // Splash rings where a critter hits the water.
+      for s in splashes {
+        let a = gt - s.t
+        if a >= 0 {
+          for q in range(20) {
+            let qa = rad(q * 18)
+            rect(floor((s.x + cos(qa) * a * 16 * p) / p) * p, floor((s.y + sin(qa) * a * 10 * p) / p) * p, p, p, fill: alpha(accent, 0.8 * clamp(1 - a / 1.6, 0, 1)))
+          }
+          for q in range(10) {
+            let qa = rad(q * 36 + 18)
+            rect(floor((s.x + cos(qa) * a * 8 * p) / p) * p, floor((s.y + sin(qa) * a * 5 * p - sin(clamp(a / 0.6, 0, 1) * 3.14) * 4 * p) / p) * p, p, p, fill: alpha(foreground, 0.7 * clamp(1 - a / 0.8, 0, 1)))
+          }
+        }
+      }
+
+      // The lily pad floats above it all, drifting a pixel or two.
+      let drift = round(sin(time * 0.07) * 2) * p
+      for r in padRects {
+        rect(r[0] + drift, r[1], r[2], r[3], fill: r[4])
+      }
+
+      // After a tap on the pad, how many swim now.
+      if gt - countAt < 1.5 {
+        text("${count} piranha${count == 1 ? "" : "s"}", pad[0] * p + drift, (pad[1] + pad[2] + 4) * p, size: 11, align: center, bold: true, color: alpha(foreground, clamp(1.5 - (gt - countAt), 0, 1)))
+      }
+
+      // The tally, a little skull and the count; it flares red on a kill.
+      if eaten > 0 {
+        let hot = clamp(1 - (gt - lastKill) / 1.5, 0, 1)
+        sprite(skull, 2 * p, height - 7 * p, p * 0.7, palette: {b: mix(alpha(muted, 0.6), red, hot)})
+        text("${eaten}", 2 * p + 5 * p * 0.7 + 4, height - 7 * p + 2.5 * p * 0.7, size: 10, color: mix(alpha(muted, 0.7), red, hot), bold: hot > 0)
+      }
+    }
+  }
+}
