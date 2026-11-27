@@ -9,7 +9,24 @@ app "wildkin" {
   // seconds from the turn's start) that the battle canvas plays from `fxAt`. A walk works the same
   // way: the path is laid down at the tap and the hero is drawn along it.
 
-  meta { owl: 23; description: "A monster-taming RPG in pixel art: catch wild kin in the tall grass, train them in turn-based battles, evolve them, and beat four keepers and the Elder"; version: "1.2"; license: "MIT"; category: "games" }
+  // Frames only while someone plays: a tap wakes the app, and it goes back to sleep 10 s after
+  // the last one, once no battle turn is playing and the hero isn't walking.
+  // Everything that decides what to draw reads `clock`, which is `time` only while awake and the
+  // second it fell asleep at otherwise, so a still screen leaves the launcher no `time` to redraw
+  // on. Handlers and trigger bodies read `time`: they only run while it's awake.
+  state awake = false
+  state froze = 0
+  state wakeAt = 0
+  let clock = awake ? time : froze
+  every 2s {
+    // (clock < wakeAt: the frame clock started over)
+    if awake && (clock > wakeAt + 10 || clock < wakeAt) && bphase != "anim" && !walking {
+      froze = clock
+      awake = false
+    }
+  }
+
+  meta { owl: 23; description: "A monster-taming RPG in pixel art: catch wild kin in the tall grass, train them in turn-based battles, evolve them, and beat four keepers and the Elder"; version: "1.3"; license: "MIT"; category: "games" }
 
   title: ""
   statusBar: false
@@ -1409,7 +1426,7 @@ app "wildkin" {
   state fxTap = 0
   state fxAt = 0
   state fxLen = 0
-  when fxAt == -1 && time != fxTap {
+  when fxAt == -1 && clock != fxTap {
     fxAt = time
     sqi = 0
   }
@@ -1419,7 +1436,7 @@ app "wildkin" {
   state wAt = 0
   state wLen = 0
   state wNext = null
-  when wAt == -1 && time != wTap { wAt = time }
+  when wAt == -1 && clock != wTap { wAt = time }
   state pSel = -1
   state denPg = 0
   state sure = false
@@ -1433,7 +1450,7 @@ app "wildkin" {
   // sounds are spelled out in `sound` so the store can list them.
   let sq = bphase != "anim" ? [] : evs.map(e => {t: e.t, u: e.k == "throw" ? 0 : e.k == "hit" ? 1 : e.k == "faint" ? 2 : e.k == "intro" ? 3 : e.k != "msg" ? -1 : e.cue ?? -1}).filter(e => e.u >= 0).sortBy(e => e.t * 1000 + e.u)
   state sqi = 0
-  let sqDue = bphase != "anim" || fxAt < 0 || time < fxAt ? 0 : count(sq, e => time - fxAt >= e.t)
+  let sqDue = bphase != "anim" || fxAt < 0 || clock < fxAt ? 0 : count(sq, e => clock - fxAt >= e.t)
   when sqDue > sqi {
     let u = sq[sqDue - 1].u
     if snd { sound(u == 0 ? S_THROW : u == 1 ? S_HIT : u == 2 ? S_FAINT : u == 3 ? S_ENC : u == 4 ? S_LEVEL : u == 5 ? S_WIN : S_LOSE) }
@@ -2115,7 +2132,7 @@ app "wildkin" {
   }
 
   // ---- a turn's end: back to the menu, or out of the battle ------------------------------------------
-  when bphase == "anim" && fxAt >= 0 && (time - fxAt > fxLen || time < fxAt - 1) {
+  when bphase == "anim" && fxAt >= 0 && (clock - fxAt > fxLen || clock < fxAt - 1) {
     bphase = bnext
     if bnext == "won" || bnext == "caught" || bnext == "fled" {
       let k103 = bt.kp
@@ -2174,7 +2191,7 @@ app "wildkin" {
 
 
 
-  when walking && wAt >= 0 && (time - wAt > wLen || time < wAt - 1) {
+  when walking && wAt >= 0 && (clock - wAt > wLen || clock < wAt - 1) {
     walking = false
     let wn105 = wNext
     wNext = null
@@ -2314,7 +2331,7 @@ app "wildkin" {
     Canvas {
       fill: true
       if scene == "map" {
-        let tt = walking ? time : 0
+        let tt = walking ? clock : 0
         let e = walking && wAt >= 0 ? clamp((tt - wAt) / STEP, 0, len(wp) - 1) : len(wp) > 0 && walking ? 0 : 0
         let i = min(floor(e), max(0, len(wp) - 2))
         let fr = e - i
@@ -2349,7 +2366,7 @@ app "wildkin" {
       fill: true
       if scene == "battle" && bt != null {
         let an = bphase == "anim"
-        let tt = time
+        let tt = clock
         let now0 = !an ? 99 : fxAt < 0 ? 0 : tt - fxAt
         let now = now0 < 0 || now0 > 60 ? 99 : now0
         let FX = an ? evs.filter(z => z.t <= now) : []
@@ -2572,6 +2589,8 @@ app "wildkin" {
       onRelease: { downAt = [-1, -1] }
       ripple: false
       onTap: {
+        awake = true
+        wakeAt = time
         if scene == "title" {
           let going = started && len(party) > 0
           let by = SH * 0.68
@@ -3211,7 +3230,7 @@ app "wildkin" {
         }
       }
       if scene == "title" {
-        let tt = time
+        let tt = clock
         rect(0, 0, SW, SH, fill: linear(0, 0, 0, SH, ["#7ac8f0", "#d8f0ff"]))
         rect(0, SH * 0.58, SW, SH * 0.42, fill: "#5aa848")
         rect(0, SH * 0.58, SW, 4, fill: "#6ac05a")

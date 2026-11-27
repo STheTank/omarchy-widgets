@@ -13,7 +13,24 @@ app "cryptdeck" {
   // `drawQ` draws `drawN` cards, `endQ` plays the enemies' turn, `winQ` hands out the spoils and
   // `gainQ` gives the relic `gainR`.
 
-  meta { owl: 23; description: "A pixel-art deckbuilder roguelite: climb a three-act crypt, pick your path on a branching map, collect relics and beat the bosses, with a card collection that grows every run; taps only"; version: "1.2"; license: "MIT"; category: "games" }
+  // Frames only while someone plays: a tap wakes the app, and it goes back to sleep 10 s after
+  // the last one, once no card or enemy turn is still playing (`busy`).
+  // Everything that decides what to draw reads `clock`, which is `time` only while awake and the
+  // second it fell asleep at otherwise, so a still screen leaves the launcher no `time` to redraw
+  // on. Handlers and trigger bodies read `time`: they only run while it's awake.
+  state awake = false
+  state froze = 0
+  state wakeAt = 0
+  let clock = awake ? time : froze
+  every 2s {
+    // (clock < wakeAt: the frame clock started over)
+    if awake && (clock > wakeAt + 10 || clock < wakeAt) && !busy {
+      froze = clock
+      awake = false
+    }
+  }
+
+  meta { owl: 23; description: "A pixel-art deckbuilder roguelite: climb a three-act crypt, pick your path on a branching map, collect relics and beat the bosses, with a card collection that grows every run; taps only"; version: "1.3"; license: "MIT"; category: "games" }
 
   title: ""
   statusBar: false
@@ -1556,8 +1573,8 @@ app "cryptdeck" {
   state gainR = -1
 
   // a frame after a tap: a tap's own `time` can be off the frame clock
-  when fxAt == -1 && time != fxTap { fxAt = time }
-  when busy && fxAt >= 0 && (time > fxAt + fxDur || time < fxAt - 1) {
+  when fxAt == -1 && clock != fxTap { fxAt = time }
+  when busy && fxAt >= 0 && (clock > fxAt + fxDur || clock < fxAt - 1) {
     busy = false
     phase = "p"
   }
@@ -2985,8 +3002,8 @@ app "cryptdeck" {
     Canvas {
       fill: true
       if scene {
-        let now = fxAt == -1 ? 0 : time < fxAt - 1 ? 999 : time - fxAt
-        let tt = time
+        let now = fxAt == -1 ? 0 : clock < fxAt - 1 ? 999 : clock - fxAt
+        let tt = clock
         let FX = fx
         // the torches
         for tx, ti in [SW * 0.08, SW * 0.92] {
@@ -3167,7 +3184,7 @@ app "cryptdeck" {
         }
       }
       if mode == "map" && dv == "" {
-        let tt = time
+        let tt = clock
         for z in REACH {
           circle(NP[z].x, NP[z].y, 18 + 2 * sin(tt * 5), stroke: alpha(accent, 0.6 + 0.4 * sin(tt * 5)), width: 3)
         }
@@ -3176,14 +3193,14 @@ app "cryptdeck" {
         if pos >= 0 { sprite(SP_KNIGHT, kp.x - 8 * 1.6, kp.y - 20 * 1.6 - 14 - (floor(tt * 2) % 2) * 2, 1.6, palette: P_KNIGHT) }
       }
       if mode == "rest" && dv == "" {
-        let tt = time
+        let tt = clock
         let fz = 7 + 0.3 * hash(floor(tt * 8))
         circle(SW / 2, SH * 0.3, 90, fill: alpha("#ff9a3a", 0.06 + 0.02 * hash(floor(tt * 8), 1)))
         sprite(MI[0], SW / 2 - 6 * fz, SH * 0.3 - 6 * fz, fz, palette: MIP)
         sprite(SP_KNIGHT, SW / 2 - 100 - 8 * 3, SH * 0.3 + 30 - 20 * 3 + (floor(tt) % 2) * 2, 3, palette: P_KNIGHT)
       }
       if mode == "title" {
-        let tt = time
+        let tt = clock
         let ls = min(30, (SW - 30) / 9)
         let ty = SH * 0.16
         text("CRYPTDECK", SW / 2 + 3, ty + 3, size: ls, color: INK, font: press, align: center)
@@ -3417,6 +3434,8 @@ app "cryptdeck" {
       onRelease: { downAt = [-1, -1] }
       ripple: false
       onTap: {
+        awake = true
+        wakeAt = time
         let b = BT.find(z => !(z.dis ?? false) && x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h)
         let rt = TB ? RLT.find(z => x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) : null
         let wasTip = tip

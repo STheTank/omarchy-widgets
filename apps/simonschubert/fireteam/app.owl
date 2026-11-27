@@ -13,7 +13,24 @@ app "fireteam" {
   // action left, `on chk` plays the hostiles' whole turn in one go, each picking the tile it likes
   // best of those it can reach: one it can shoot from, in cover, near the squad.
 
-  meta { owl: 16; description: "Turn-based squad tactics in pixel art: lead a rifleman, a shotgunner and a sniper through eight operations; take cover, flank, set overwatch, throw grenades and blow up barrels"; version: "1.2"; license: "MIT"; category: "games" }
+  // Frames only while someone plays: a tap wakes the app, and it goes back to sleep 10 s after
+  // the last one, once the last shot, blast or hostile move has played (`fxEnd`).
+  // Everything that decides what to draw reads `clock`, which is `time` only while awake and the
+  // second it fell asleep at otherwise, so a still screen leaves the launcher no `time` to redraw
+  // on. Handlers and trigger bodies read `time`: they only run while it's awake.
+  state awake = false
+  state froze = 0
+  state wakeAt = 0
+  let clock = awake ? time : froze
+  every 2s {
+    // (clock < wakeAt: the frame clock started over)
+    if awake && (clock > wakeAt + 10 || clock < wakeAt) && (clock >= fxEnd || fxEnd > clock + 10) {
+      froze = clock
+      awake = false
+    }
+  }
+
+  meta { owl: 16; description: "Turn-based squad tactics in pixel art: lead a rifleman, a shotgunner and a sniper through eight operations; take cover, flank, set overwatch, throw grenades and blow up barrels"; version: "1.3"; license: "MIT"; category: "games" }
 
   // pixel font in capitals: the WATCH tag under a soldier holds 6 letters, KIA 7, the big buttons
   // about 15; button words shrink to fit
@@ -652,7 +669,7 @@ app "fireteam" {
   // clock is only read while some are still to play.
   state sfq = []
   state sqi = 0
-  let sqDue = sqi >= len(sfq) ? sqi : count(sfq, e => time >= e.t)
+  let sqDue = sqi >= len(sfq) ? sqi : count(sfq, e => clock >= e.t)
   when sqDue > sqi {
     let u = sfq[sqDue - 1].u
     if snd { sound(u == 0 ? S_RIFLE : u == 1 ? S_SHOTGUN : u == 2 ? S_SNIPER : u == 3 ? S_HIT : u == 4 ? S_MISS : u == 5 ? S_BOOM : u == 6 ? S_WATCH : u == 7 ? S_DOWN : u == 8 ? S_WIN : S_LOSE) }
@@ -1168,7 +1185,7 @@ app "fireteam" {
     Canvas {
       fill: true
       if mode == "play" && len(grid) == N && len(vis) == N {
-        let now = time
+        let now = clock
         // a time far ahead is from before a reload, when the clock started again
         let FX = fxEnd > now + 10 ? [] : fx
         let idle = (now >= fxEnd || fxEnd > now + 10) && !won && !wiped && me != null && me.ap > 0
@@ -1309,6 +1326,8 @@ app "fireteam" {
       onRelease: { downAt = [-1, -1] }
       ripple: false
       onTap: {
+        awake = true
+        wakeAt = time
         if mode == "title" {
           if y < TOP + 40 && x >= SW - 120 {
             snd = !snd
@@ -1534,7 +1553,7 @@ app "fireteam" {
           }
         }
         // ---- the end of an operation ----
-        if (won || wiped) && (time >= fxEnd || fxEnd > time + 10) {
+        if (won || wiped) && (clock >= fxEnd || fxEnd > clock + 10) {
           rect(0, 0, SW, SH, fill: alpha("#06070b", 0.6))
           let ccw = min(SW - 40, 320)
           let ccx = SW / 2 - ccw / 2
@@ -1562,7 +1581,7 @@ app "fireteam" {
       }
       // ---- the title ----
       if mode == "title" {
-        let tt = time
+        let tt = clock
         // faint slabs
         let gs = 36
         for k in range(ceil(SW / gs) + 1) { rect(k * gs, 0, 1, SH, fill: alpha(foreground, 0.04)) }
