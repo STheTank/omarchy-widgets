@@ -2,7 +2,7 @@ face "gita sloka" {
   page: 0
   edge: true
   statusBar: false
-  meta { owl: 14; description: "A full-screen Bhagavad Gita face with Hindi/English meaning, transliteration, cached AI reflection, favorites, daily verse, jump, and reading controls."; version: "2.1"; license: "MIT"; category: "home" }
+  meta { owl: 14; description: "A full-screen Bhagavad Gita face with Hindi/English meaning, transliteration, cached AI reflection, favorites, daily verse, jump, and reading controls."; version: "2.2"; license: "MIT"; category: "home" }
 
   requires { pacman: ["jq"] }
 
@@ -85,6 +85,14 @@ face "gita sloka" {
       let k = "${int(ch)}:${int(vs)}"
       let rest = verseCache.filter(v => v.key != k)
       verseCache = ([{key: k, ch: ch, vs: vs, data: slok.out}] + rest).take(80)
+    }
+  }
+
+  // In daily mode the face follows the date: a new day brings its verse
+  on today {
+    if dailyMode && (ch != dailyCh || vs != dailyVs) {
+      ch = dailyCh
+      vs = dailyVs
     }
   }
 
