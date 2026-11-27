@@ -2,7 +2,9 @@ face "gita sloka" {
   page: 0
   edge: true
   statusBar: false
-  meta { owl: 14; description: "A full-screen Bhagavad Gita face with Hindi/English meaning, transliteration, cached AI reflection, favorites, daily verse, jump, and reading controls."; version: "2.0"; license: "MIT"; category: "home" }
+  meta { owl: 14; description: "A full-screen Bhagavad Gita face with Hindi/English meaning, transliteration, cached AI reflection, favorites, daily verse, jump, and reading controls."; version: "2.1"; license: "MIT"; category: "home" }
+
+  requires { pacman: ["jq"] }
 
   // Verse counts per chapter (1-18).
   let counts = [47, 72, 43, 42, 29, 47, 30, 28, 34, 42, 55, 20, 35, 27, 20, 24, 28, 78]
@@ -13,7 +15,7 @@ face "gita sloka" {
     "Kshetra Kshetrajna Vibhaga Yoga", "Gunatraya Vibhaga Yoga", "Purushottama Yoga",
     "Daivasura Sampad Vibhaga Yoga", "Sraddhatraya Vibhaga Yoga", "Moksha Sannyasa Yoga"
   ]
-  let totalVerses = 700
+  let totalVerses = 701
 
   state ch = 2 persist
   state vs = 47 persist
@@ -76,7 +78,7 @@ face "gita sloka" {
   let nextCh = vs < counts[ch - 1] ? ch : (ch < 18 ? ch + 1 : 1)
   let nextVs = vs < counts[ch - 1] ? vs + 1 : (ch < 18 ? 1 : 1)
 
-  let shareText = "${ref} · ${chapterName}\n${sourceUrl}\n\n${sanskritShare ?? ""}\n\n${translitShare ?? ""}\n\nMeaning${meaningAuthor != "" ? " (" + meaningAuthor + ")" : ""}: ${meaning ?? ""}${hasAi ? "\n\nAI Reflection (generated locally): ${aiText}" : ""}"
+  let shareText = "${ref} · ${chapterName}\n${sourceUrl}\n\n${sanskritShare ?? ""}\n\n${translitShare ?? ""}\n\nMeaning${meaningAuthor != "" ? " (" + meaningAuthor + ")" : ""}: ${meaning ?? ""}${hasAi ? "\n\nAI Reflection: ${aiText}" : ""}"
 
   on slok {
     if slok.ok && slok.out != null {
@@ -89,7 +91,8 @@ face "gita sloka" {
   on aiOut {
     aiBusy = false
     if aiKey != "" {
-      let t = trim(aiOut)
+      // the first line is a stamp that makes every answer new, so an empty one still lands here
+      let t = trim(join(drop(lines(aiOut), 1), "\n"))
       if t != "" { aiCache = set(aiCache, aiKey, t) }
     }
   }
@@ -288,7 +291,7 @@ face "gita sloka" {
             color: ready ? alpha(foreground, 0.96) : alpha(foreground, 0.74)
           }
         }
-        Text { text: "AI reflection, generated locally"; font: titleFont; fontSize: smallSize; fontWeight: 600; color: alpha(foreground, 0.54) }
+        Text { text: "AI reflection by opencode"; font: titleFont; fontSize: smallSize; fontWeight: 600; color: alpha(foreground, 0.54) }
       }
     }
   }
@@ -638,7 +641,8 @@ face "gita sloka" {
                   let styleText = aiStyle == "devotional" ? "devotional, warm, and faith-centered" : aiStyle == "short" ? "very short, clear, and practical in 1-2 sentences" : "warm, practical in 2-3 sentences"
                   let langText = aiLang == "hi" ? "Hindi" : "English"
                   let p = "Give a ${styleText} commentary in ${langText} on Bhagavad Gita ${ch}.${vs}. Meaning: ${meaningEn ?? ""} Reply with plain text only."
-                  aiOut = run("opencode run --format json --auto --archived --title gita-widget ${sh(p)} | jq -rs '[.[] | select(.type==\"text\") | .part.text] | last // \"\"'")
+                  // no --auto: the prompt carries the verse API's text, and a commentary needs no tools
+                  aiOut = run("echo ${int(time * 1000)}; opencode run --format json --archived --title gita-widget ${sh(p)} | jq -rs '[.[] | select(.type==\"text\") | .part.text] | last // \"\"'")
                 }
               }
               IconBtn { icon: aiBusy ? "…" : "✦"; tint: accent; bg: alpha(accent, aiBusy ? 0.10 : 0.16); borderTint: alpha(accent, aiBusy ? 0.14 : 0.22); active: hasAi }

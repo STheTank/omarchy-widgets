@@ -1,8 +1,8 @@
 app "Twinmark" {
   meta {
     owl: 21
-    description: "A Dobble-inspired landscape card game with original symbols. Find the one symbol shared by both cards and tap it to score and flip that card."
-    version: "1.0"
+    description: "A landscape card game with original symbols. Find the one symbol shared by both cards and tap it to score and flip that card."
+    version: "1.1"
     license: "MIT"
     category: "games"
   }
@@ -21,7 +21,8 @@ app "Twinmark" {
     <path d="M172 95l8 17 19 3-14 13 3 19-17-9-17 9 3-19-14-13 20-3z" fill="#176859"/>
   </svg>"""
 
-  fps: 60
+  // 60 fps only while a card flips or a miss ring fades; a still table needs almost none
+  fps: flipSide >= 0 || missTime > 0 ? 60 : 2
   state activeCards = shuffle(range(73)).take(2)
   state dealSeeds = [random(1000000), random(1000000)]
   state scores = [0, 0]
@@ -336,7 +337,7 @@ app "Twinmark" {
 
   every frame {
     if flipSide >= 0 {
-      flipTime = flipTime + dt
+      flipTime = flipTime + min(dt, 0.05)
       if flipTime >= 0.32 && nextCard >= 0 {
         activeCards = set(activeCards, flipSide, nextCard)
         dealSeeds = set(dealSeeds, flipSide, random(1000000))
@@ -347,7 +348,7 @@ app "Twinmark" {
         flipTime = 0
       }
     }
-    if missTime > 0 { missTime = max(0, missTime - dt) }
+    if missTime > 0 { missTime = max(0, missTime - min(dt, 0.05)) }
   }
 
   Canvas {
