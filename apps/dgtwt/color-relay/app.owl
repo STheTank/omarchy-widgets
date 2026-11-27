@@ -1,5 +1,5 @@
 app "Color Relay" {
-  meta { owl: 21; category: "games"; description: "A beach-themed solo card game. Find the one color or number match in ten hands, with a relaxed soundtrack or three timed challenges."; version: "1.0"; license: "MIT" }
+  meta { owl: 21; category: "games"; description: "A beach-themed solo card game. Find the one color or number match in ten hands, with a relaxed soundtrack or three timed challenges."; version: "1.1"; license: "MIT" }
   title: ""
   icon: """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
     <rect width="256" height="256" rx="56" fill="#64DFF6"/>
@@ -37,7 +37,7 @@ from ctypes import c_int64, c_int16
 SAMPLE_RATE = 24_000
 BLOCK_SIZE = 240
 BYTES_PER_MILLISECOND = SAMPLE_RATE * 2 // 1000  # 16-bit mono PCM
-KEEPALIVE_SECONDS = 2.1
+KEEPALIVE_SECONDS = 6.5
 CUES = ("match", "miss", "win", "timeout")
 EVENTS = (*CUES, "play", "idle", "mute")
 ADDRESS = f"\0omalauncher-color-relay-store-{os.getuid()}"
@@ -53,7 +53,8 @@ def audio_bytes():
     widgets = Path.home() / ".config/omalauncher/widgets"
     pattern = "market-app-dgtwt-color-relay*.owl"
     marker = "\n  asset relayAudioPack = base64" + chr(34)
-    for path in sorted(widgets.glob(pattern)):
+    # a copy installed under another name still finds its sound: the hash picks the right file
+    for path in sorted(widgets.glob(pattern)) + sorted(widgets.glob("*.owl")):
         try:
             _, found, rest = path.read_text().partition(marker)
             if found:
@@ -312,9 +313,15 @@ serve()
   let slotWidth = (boardWidth - 2 * cardGap) / 3
   let handTop = stageHeight + sectionGap + handInset + handLabelHeight + cardGap
 
-  // Start automatically and renew playback while this app is visible.
-  every 1s {
+  // Start automatically and renew playback while this app is visible: one python3 every 5 s
+  // (the player stops 6.5 s after the last one, so a neighbouring page goes quiet)
+  every 5s {
     if audioEnabled && !finished && !lastMatch {
+      run("python3 -c 'import os, socket, sys\naddress = f\"\\0omalauncher-color-relay-store-{os.getuid()}\"\nwith socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sender:\n    sender.setblocking(False)\n    try:\n        sender.sendto(\" \".join(sys.argv[1:]).encode(), address)\n    except (FileNotFoundError, ConnectionRefusedError, BlockingIOError):\n        pass' ${int(mode)} play")
+    }
+  }
+  on audioPlayer {
+    if audioPlayer == "ready" && audioEnabled && !finished && !lastMatch {
       run("python3 -c 'import os, socket, sys\naddress = f\"\\0omalauncher-color-relay-store-{os.getuid()}\"\nwith socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sender:\n    sender.setblocking(False)\n    try:\n        sender.sendto(\" \".join(sys.argv[1:]).encode(), address)\n    except (FileNotFoundError, ConnectionRefusedError, BlockingIOError):\n        pass' ${int(mode)} play")
     }
   }
