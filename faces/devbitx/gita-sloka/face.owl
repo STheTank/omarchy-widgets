@@ -2,7 +2,7 @@ face "gita sloka" {
   page: 0
   edge: true
   statusBar: false
-  meta { owl: 14; description: "A full-screen Bhagavad Gita face with Hindi/English meaning, transliteration, cached AI reflection, favorites, daily verse, jump, and reading controls."; version: "2.2"; license: "MIT"; category: "home" }
+  meta { owl: 14; description: "A full-screen Bhagavad Gita face with Hindi/English meaning, transliteration, cached AI reflection, favorites, daily verse, jump, and reading controls."; version: "2.3"; license: "MIT"; category: "home" }
 
   requires { pacman: ["jq"] }
 
@@ -111,12 +111,18 @@ face "gita sloka" {
   let short = h < 680
   let compact = w < 410 || h < 590
   let pad = compact ? 14 : 22
+  // the bottom bar's seven buttons, its padding and its seven gaps (one beside the spacer) fit the width
+  let barPad = compact ? 8 : 12
+  let barGap = compact ? 6 : 10
+  let btnSize = min(46, floor((w - 2 * pad - 2 * barPad - 7 * barGap - 4) / 7))
   let gap = compact ? 12 : 16
   let cardRadius = 28 * corners
   let titleFont = "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz,wght%5D.ttf"
   let verseFont = "https://raw.githubusercontent.com/google/fonts/main/ofl/tirodevanagarisanskrit/TiroDevanagariSanskrit-Regular.ttf"
   let scale = textSize == "S" ? 0.92 : textSize == "L" ? 1.18 : 1
-  let titleSize = (compact ? 28 : (short ? 36 : 44)) * scale
+  // "GITA SLOKA" shares its row with three buttons: below ~560 dp it shrinks to the width left
+  let titleSize = min((compact ? 28 : (short ? 36 : 44)) * scale, max(20, (w - 290) / 6))
+  let narrow = w < 480
   let slokaSize = (compact ? 24 : (short ? 30 : 36)) * scale
   let bodySize = (compact ? 16 : (short ? 18 : 21)) * scale
   let commentarySize = (compact ? 15 : (short ? 17 : 19)) * scale
@@ -137,8 +143,8 @@ face "gita sloka" {
 
   component IconBtn(icon, tint = foreground, bg = cardBgSoft, borderTint = cardBorder, active = false, size = 46) {
     Box {
-      width: compact ? size - 4 : size
-      height: compact ? size - 4 : size
+      width: min(size, btnSize)
+      height: min(size, btnSize)
       radius: 15 * corners
       background: active ? alpha(accent, 0.24) : bg
       border: 1
@@ -347,7 +353,7 @@ face "gita sloka" {
               gap: 3
               Text { text: "GITA SLOKA"; font: titleFont; fontSize: titleSize; fontWeight: 800; color: foreground; letterSpacing: -0.6; maxLines: 1 }
               Text { spans: [{text: "Ch ${int(ch)}", color: accent, bold: true}, {text: " · ", color: muted}, {text: chapterName, color: foreground, bold: true}]; font: titleFont; fontSize: compact ? 14 : 16; fontWeight: 600; maxLines: 1 }
-              Text { text: "Verse ${int(vs)} of ${counts[ch - 1]}  •  ${verseNum} of ${totalVerses}${isDaily ? "  •  Daily verse" : ""}"; font: titleFont; fontSize: smallSize; fontWeight: 500; color: alpha(foreground, 0.62); maxLines: 1 }
+              Text { text: narrow ? "Verse ${int(vs)}/${counts[ch - 1]}  •  ${verseNum}/${totalVerses}${isDaily ? "  •  Daily" : ""}" : "Verse ${int(vs)} of ${counts[ch - 1]}  •  ${verseNum} of ${totalVerses}${isDaily ? "  •  Daily verse" : ""}"; font: titleFont; fontSize: smallSize; fontWeight: 500; color: alpha(foreground, 0.62); maxLines: 1 }
             }
             Row {
               gap: 8
@@ -608,14 +614,14 @@ face "gita sloka" {
 
         Box {
           fill: width
-          padding: compact ? 10 : 12
+          padding: barPad
           radius: 24 * corners
           frost: 20
           background: alpha(surface, 0.22)
           border: 1
           borderColor: cardBorder
           Row {
-            gap: compact ? 8 : 10
+            gap: barGap
             align: center
             Box { onTap: { ch = prevCh; vs = prevVs; dailyMode = false }; IconBtn { icon: "←"; tint: foreground; bg: cardBgSoft } }
             Box { onTap: { ch = nextCh; vs = nextVs; dailyMode = false }; IconBtn { icon: "→"; tint: foreground; bg: cardBgSoft } }
