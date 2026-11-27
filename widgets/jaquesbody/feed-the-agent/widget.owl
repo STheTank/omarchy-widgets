@@ -23,7 +23,7 @@ widget "feed the agent" {
   meta {
     owl: 19
     description: "Type or say a thought on the tile and it lands in a note on this phone or in your Obsidian vault. Optionally ask a computer on your network to sort it. No model runs on the phone."
-    version: "2.6"
+    version: "2.6.1"
     license: "MIT"
     category: "productivity"
   }
@@ -1259,7 +1259,7 @@ for name in names:
           background: alpha(accent, 0.1)
           radius: 12 * corners
 
-          Text { text: upper(str.whereAgent); style: label; color: #ffffff; letterSpacing: 1.2; maxLines: 1 }
+          Text { text: upper(str.whereAgent); style: label; color: foreground; letterSpacing: 1.2; maxLines: 1 }
 
           // Four answers on one row, each the same box, so the card keeps one
           // size whichever is picked.
@@ -1396,7 +1396,7 @@ for name in names:
           background: alpha(accent, 0.1)
           radius: 12 * corners
 
-          Text { text: upper(str.selectInbox); style: label; color: #ffffff; letterSpacing: 1.2; maxLines: 1 }
+          Text { text: upper(str.selectInbox); style: label; color: foreground; letterSpacing: 1.2; maxLines: 1 }
 
           // One row, left-aligned: the path starts where the title does, and
           // when it is too long its front is cut, so the file name always
@@ -1468,7 +1468,7 @@ for name in names:
           background: alpha(accent, 0.1)
           radius: 12 * corners
 
-          Text { text: upper(str.selectFolder); style: label; color: #ffffff; letterSpacing: 1.2; maxLines: 1 }
+          Text { text: upper(str.selectFolder); style: label; color: foreground; letterSpacing: 1.2; maxLines: 1 }
 
           Row {
             fill: width
@@ -1559,7 +1559,7 @@ for name in names:
           background: alpha(accent, 0.1)
           radius: 12 * corners
 
-          Text { text: upper(str.bumpTitle); style: label; color: #ffffff; letterSpacing: 1.2; maxLines: 1 }
+          Text { text: upper(str.bumpTitle); style: label; color: foreground; letterSpacing: 1.2; maxLines: 1 }
 
           Row {
             gap: 10
@@ -1622,7 +1622,7 @@ for name in names:
           background: alpha(accent, 0.1)
           radius: 12 * corners
 
-          Text { text: upper(str.formatTitle); style: label; color: #ffffff; letterSpacing: 1.2; maxLines: 1 }
+          Text { text: upper(str.formatTitle); style: label; color: foreground; letterSpacing: 1.2; maxLines: 1 }
           Text {
             text: str.formatHelp
             style: small
@@ -1687,7 +1687,7 @@ for name in names:
               border: 1
               borderColor: alpha(accent, 0.3)
               onTap: { haptic(); pos = "top" }
-              Text { text: str.top; style: body; color: pos == "top" ? #ffffff : muted; align: center; maxLines: 1 }
+              Text { text: str.top; style: body; color: pos == "top" ? foreground : muted; align: center; maxLines: 1 }
             }
             Box {
               width: 68
@@ -1698,7 +1698,7 @@ for name in names:
               border: 1
               borderColor: alpha(accent, 0.3)
               onTap: { haptic(); pos = "bottom" }
-              Text { text: str.bottom; style: body; color: pos == "bottom" ? #ffffff : muted; align: center; maxLines: 1 }
+              Text { text: str.bottom; style: body; color: pos == "bottom" ? foreground : muted; align: center; maxLines: 1 }
             }
           }
         }
@@ -1713,7 +1713,7 @@ for name in names:
           background: alpha(accent, 0.1)
           radius: 12 * corners
 
-          Text { text: upper(str.preview); style: label; color: #ffffff; letterSpacing: 1.2 }
+          Text { text: upper(str.preview); style: label; color: foreground; letterSpacing: 1.2 }
           Column {
             gap: 0
             Text {
@@ -1754,7 +1754,7 @@ for name in names:
           background: alpha(accent, 0.1)
           radius: 12 * corners
 
-          Text { text: upper(str.notifications); style: label; color: #ffffff; letterSpacing: 1.2; maxLines: 1 }
+          Text { text: upper(str.notifications); style: label; color: foreground; letterSpacing: 1.2; maxLines: 1 }
 
           Row {
             fill: width
@@ -1763,7 +1763,7 @@ for name in names:
             Text {
               text: str.notifyFailLabel
               style: body
-              color: #ffffff
+              color: foreground
               weight: 1
               maxLines: 1
             }
@@ -1777,7 +1777,7 @@ for name in names:
             Text {
               text: str.notifySortedLabel
               style: body
-              color: #ffffff
+              color: foreground
               weight: 1
               maxLines: 1
             }
@@ -1789,7 +1789,7 @@ for name in names:
         Text {
           text: str.builtBy
           style: small
-          color: #ffffff
+          color: foreground
           align: center
           maxLines: 1
           onTap: url("https://jaquesbody.github.io/")
