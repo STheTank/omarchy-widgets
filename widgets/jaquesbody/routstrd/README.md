@@ -36,13 +36,13 @@ Set an SSH host alias in that field to run the same program on the machine that 
 For each command the widget writes the filled-in program to `~/.cache/routstrd-<verb>.sh` with
 `printf %s` and runs that file; over SSH the same text goes on stdin and is written and run there. The
 program is data, never a shell word, so no widget value is executed as code. If the SSH connection
-fails, the phone runs the file it already wrote locally. Only the host alias, the amount and an
+itself fails (exit 255), the phone runs the file it already wrote locally. Only the host alias, the amount and an
 operation id are passed as shell words, each through `sh()`. There is no token, address, username or key
 in the file.
 
 The quote poll starts nothing while the wallet is idle: an `every 5s` block only asks the daemon about
-an invoice while one is open. The status, monitor and journal sources read on their own slower
-intervals, and only while their view is on screen.
+an invoice while one is open. The status source reads every 60 s, and right away after start, stop or
+restart. The monitor and journal sources read every 30 s, and only while their view is open.
 
 ## Requires
 
@@ -55,4 +55,4 @@ foot of the screen opens the card again. The tile stays a clean status, switch a
 
 - The status colours are fixed (green `#4ade80`, amber `#fbbf24`, red `#f87171`) rather than theme names:
   some themes, hackerman among them, name their red green.
-- `meta`: version 1.3, MIT, category `dev`, owl 16.
+- `meta`: version 1.4, MIT, category `dev`, owl 16.
