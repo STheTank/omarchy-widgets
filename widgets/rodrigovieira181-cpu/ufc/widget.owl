@@ -1,0 +1,1132 @@
+widget "ufc" {
+  size: 6x4
+  minSize: 3x3
+
+  meta {
+    description: "Upcoming UFC events with confirmed fights and rumors, updated every 6 hours";
+    version: "1.0";
+    license: "MIT";
+    category: "sport";
+    owl: 17;
+  }
+
+  requires {
+    pacman: ["curl", "perl"];
+  }
+
+  strings {
+    en {
+      title_short: "UFC EVENTS"
+      title_long: "UFC UPCOMING EVENTS"
+      loading: "Loading UFC events…"
+      confirmed_count: n => "✓ ${n} Confirmed"
+      rumored_count: n => "? ${n} Rumors"
+      confirmed_badge: "✓ CONFIRMED"
+      rumor_badge: "? RUMOR"
+      rumor_badge_long: "? RUMOR / UNCONFIRMED"
+      tap_full: "Tap for full card ↗"
+      screen_title: "UFC - Events & Card"
+      date_label: d => "📅 Date: ${d}"
+      location_label: l => "📍 Location: ${l}"
+      location_tbd: "Location TBA"
+      tbd: "TBA"
+      total_fights: n => n == 1 ? "Total: 1 fight" : "Total: ${n} fights"
+      upcoming_events: "Upcoming Scheduled Events:"
+      filter_all: n => "All (${n})"
+      confirmed_heading: "OFFICIALLY CONFIRMED FIGHTS"
+      rumors_heading: "RUMORS & UNCONFIRMED FIGHTS"
+      fight_count: n => n == 1 ? "1 fight" : "${n} fights"
+      rumor_note: "Bout verbally agreed or reported by press. Awaiting official UFC announcement/contract."
+      refresh_now: "Refresh now"
+      close: "Close"
+      no_data: "No data available."
+      weight: w => get({
+        "Heavyweight": "Heavyweight",
+        "Light Heavyweight": "Light Heavyweight",
+        "Middleweight": "Middleweight",
+        "Welterweight": "Welterweight",
+        "Lightweight": "Lightweight",
+        "Featherweight": "Featherweight",
+        "Bantamweight": "Bantamweight",
+        "Flyweight": "Flyweight",
+        "Women's Strawweight": "Women's Strawweight",
+        "Women's Flyweight": "Women's Flyweight",
+        "Women's Bantamweight": "Women's Bantamweight",
+        "Women's Featherweight": "Women's Featherweight",
+        "Catchweight": "Catchweight",
+        "MMA": "MMA"
+      }, w, w)
+      country: c => get({
+        "United States": "USA",
+        "USA": "USA",
+        "Brazil": "Brazil",
+        "Russia": "Russia",
+        "Mexico": "Mexico",
+        "France": "France",
+        "Spain": "Spain",
+        "Germany": "Germany",
+        "England": "England",
+        "United Kingdom": "United Kingdom",
+        "Ireland": "Ireland",
+        "Australia": "Australia",
+        "New Zealand": "New Zealand",
+        "Nigeria": "Nigeria",
+        "South Korea": "South Korea",
+        "Japan": "Japan",
+        "China": "China",
+        "Georgia": "Georgia",
+        "Poland": "Poland",
+        "Portugal": "Portugal",
+        "Ukraine": "Ukraine",
+        "Moldova": "Moldova",
+        "Kazakhstan": "Kazakhstan",
+        "Kyrgyzstan": "Kyrgyzstan",
+        "Azerbaijan": "Azerbaijan",
+        "Finland": "Finland",
+        "Canada": "Canada",
+        "Cuba": "Cuba",
+        "Aruba": "Aruba",
+        "Mongolia": "Mongolia",
+        "India": "India",
+        "Nepal": "Nepal",
+        "Armenia": "Armenia",
+        "Sweden": "Sweden",
+        "Netherlands": "Netherlands",
+        "Italy": "Italy",
+        "Colombia": "Colombia",
+        "Venezuela": "Venezuela",
+        "Uzbekistan": "Uzbekistan",
+        "Angola": "Angola",
+        "Myanmar": "Myanmar",
+        "Ecuador": "Ecuador",
+        "Czech Republic": "Czech Republic",
+        "Austria": "Austria",
+        "Switzerland": "Switzerland",
+        "Serbia": "Serbia",
+        "Croatia": "Croatia",
+        "Morocco": "Morocco",
+        "South Africa": "South Africa"
+      }, c, c)
+    }
+    pt {
+      title_short: "UFC EVENTOS"
+      title_long: "UFC PRÓXIMOS EVENTOS"
+      loading: "Carregando eventos do UFC…"
+      confirmed_count: n => "✓ ${n} Confirmadas"
+      rumored_count: n => "? ${n} Rumores"
+      confirmed_badge: "✓ CONFIRMADA"
+      rumor_badge: "? RUMOR"
+      rumor_badge_long: "? RUMOR / NÃO CONFIRMADA"
+      tap_full: "Toque para card completo ↗"
+      screen_title: "UFC - Eventos e Card"
+      date_label: d => "📅 Data: ${d}"
+      location_label: l => "📍 Local: ${l}"
+      location_tbd: "Local a definir"
+      tbd: "A definir"
+      total_fights: n => n == 1 ? "Total: 1 luta" : "Total: ${n} lutas"
+      upcoming_events: "Próximos Eventos Agendados:"
+      filter_all: n => "Todas (${n})"
+      confirmed_heading: "LUTAS CONFIRMADAS OFICIALMENTE"
+      rumors_heading: "RUMORES & LUTAS NÃO CONFIRMADAS"
+      fight_count: n => n == 1 ? "1 luta" : "${n} lutas"
+      rumor_note: "Luta verbalmente acordada ou rumor reportado pela imprensa. Aguardando anúncio/contrato oficial do UFC."
+      refresh_now: "Atualizar agora"
+      close: "Fechar"
+      no_data: "Nenhum dado disponível."
+      weight: w => get({
+        "Heavyweight": "Peso Pesado",
+        "Light Heavyweight": "Peso Meio-Pesado",
+        "Middleweight": "Peso Médio",
+        "Welterweight": "Peso Meio-Médio",
+        "Lightweight": "Peso Leve",
+        "Featherweight": "Peso Pena",
+        "Bantamweight": "Peso Galo",
+        "Flyweight": "Peso Mosca",
+        "Women's Strawweight": "Peso Palha Feminino",
+        "Women's Flyweight": "Peso Mosca Feminino",
+        "Women's Bantamweight": "Peso Galo Feminino",
+        "Women's Featherweight": "Peso Pena Feminino",
+        "Catchweight": "Peso Casado",
+        "MMA": "MMA"
+      }, w, w)
+      country: c => get({
+        "United States": "EUA",
+        "USA": "EUA",
+        "Brazil": "Brasil",
+        "Russia": "Rússia",
+        "Mexico": "México",
+        "France": "França",
+        "Spain": "Espanha",
+        "Germany": "Alemanha",
+        "England": "Inglaterra",
+        "United Kingdom": "Reino Unido",
+        "Ireland": "Irlanda",
+        "Australia": "Austrália",
+        "New Zealand": "Nova Zelândia",
+        "Nigeria": "Nigéria",
+        "South Korea": "Coreia do Sul",
+        "Japan": "Japão",
+        "China": "China",
+        "Georgia": "Geórgia",
+        "Poland": "Polônia",
+        "Portugal": "Portugal",
+        "Ukraine": "Ucrânia",
+        "Moldova": "Moldávia",
+        "Kazakhstan": "Cazaquistão",
+        "Kyrgyzstan": "Quirguistão",
+        "Azerbaijan": "Azerbaijão",
+        "Finland": "Finlândia",
+        "Canada": "Canadá",
+        "Cuba": "Cuba",
+        "Aruba": "Aruba",
+        "Mongolia": "Mongólia",
+        "India": "Índia",
+        "Nepal": "Nepal",
+        "Armenia": "Armênia",
+        "Sweden": "Suécia",
+        "Netherlands": "Holanda",
+        "Italy": "Itália",
+        "Colombia": "Colômbia",
+        "Venezuela": "Venezuela",
+        "Uzbekistan": "Uzbequistão",
+        "Angola": "Angola",
+        "Myanmar": "Mianmar",
+        "Ecuador": "Equador",
+        "Czech Republic": "República Tcheca",
+        "Austria": "Áustria",
+        "Switzerland": "Suíça",
+        "Serbia": "Sérvia",
+        "Croatia": "Croácia",
+        "Morocco": "Marrocos",
+        "South Africa": "África do Sul"
+      }, c, c)
+    }
+  }
+
+  // Instant local cache to avoid a blank tile when opening the launcher
+  source cached = file("~/.cache/ufc_widget_events.json") json
+
+  // Periodic background refresh every 6 hours
+  source events = cmd("""perl - <<'PL'
+use strict;
+use warnings;
+use utf8;
+binmode(STDOUT, ':utf8');
+use JSON::PP;
+use Time::Piece;
+
+my $cache_dir = "$ENV{HOME}/.cache";
+mkdir $cache_dir unless -d $cache_dir;
+my $cache_file = "$cache_dir/ufc_widget_events.json";
+
+my %flags = (
+    "Brazil"         => "🇧🇷",
+    "USA"            => "🇺🇸",
+    "United States"  => "🇺🇸",
+    "Russia"         => "🇷🇺",
+    "Mexico"         => "🇲🇽",
+    "France"         => "🇫🇷",
+    "Spain"          => "🇪🇸",
+    "Germany"        => "🇩🇪",
+    "England"        => "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    "United Kingdom" => "🇬🇧",
+    "Ireland"        => "🇮🇪",
+    "Australia"      => "🇦🇺",
+    "New Zealand"    => "🇳🇿",
+    "Nigeria"        => "🇳🇬",
+    "South Korea"    => "🇰🇷",
+    "Japan"          => "🇯🇵",
+    "China"          => "🇨🇳",
+    "Georgia"        => "🇬🇪",
+    "Poland"         => "🇵🇱",
+    "Portugal"       => "🇵🇹",
+    "Ukraine"        => "🇺🇦",
+    "Moldova"        => "🇲🇩",
+    "Kazakhstan"     => "🇰🇿",
+    "Kyrgyzstan"     => "🇰🇬",
+    "Azerbaijan"     => "🇦🇿",
+    "Finland"        => "🇫🇮",
+    "Canada"         => "🇨🇦",
+    "Cuba"           => "🇨🇺",
+    "Aruba"          => "🇦🇼",
+    "Mongolia"       => "🇲🇳",
+    "India"          => "🇮🇳",
+    "Nepal"          => "🇳🇵",
+    "Armenia"        => "🇦🇲",
+    "Sweden"         => "🇸🇪",
+    "Netherlands"    => "🇳🇱",
+    "Italy"          => "🇮🇹",
+    "Colombia"       => "🇨🇴",
+    "Venezuela"      => "🇻🇪",
+    "Uzbekistan"     => "🇺🇿",
+    "Angola"         => "🇦🇴",
+    "Myanmar"        => "🇲🇲",
+    "Ecuador"        => "🇪🇨",
+    "Czech Republic" => "🇨🇿",
+    "Austria"        => "🇦🇹",
+    "Switzerland"    => "🇨🇭",
+    "Serbia"         => "🇷🇸",
+    "Croatia"        => "🇭🇷",
+    "Morocco"        => "🇲🇦",
+    "South Africa"   => "🇿🇦",
+);
+
+my %fighter_countries = (
+    "Chase Hooper"                => "USA",
+    "Chris Padilla"               => "USA",
+    "Ronald Humphrey"             => "USA",
+    "Nikolay Veretennikov"        => "Kazakhstan",
+    "Roque Conceição Moreira Jr." => "Brazil",
+    "Nilson Rojas"                => "Venezuela",
+    "Angela Hill"                 => "USA",
+    "Shanelle Dyer"               => "England",
+    "Jacqueline Cavalcanti"       => "Portugal",
+    "Michelle Montague"           => "New Zealand",
+    "Carli Judice"                => "USA",
+    "Pat Sabatini"                => "USA",
+    "Vinicius Oliveira"           => "Brazil",
+    "Yadier del Valle"            => "Cuba",
+    "Ezra Elliott"                => "USA",
+    "George Mangos"               => "Australia",
+    "Dagiisuren Chagnaadorj"      => "Mongolia",
+    "Rabindra Dhant"              => "India",
+    "Ryo Tajima"                  => "Japan",
+    "Ji Niushiyue"                => "China",
+    "Takaya Suzuki"               => "Japan",
+    "Park Bo-hyun"                => "South Korea",
+    "Meng Bo"                     => "China",
+    "Gable Steveson"              => "USA",
+    "Terrance Chatman"            => "USA",
+    "Mateusz Rębecki"             => "Poland",
+    "Elves Brener"                => "Brazil",
+    "Luke Riley"                  => "England",
+    "Gabriel Santos"              => "Brazil",
+    "Sean Brady"                  => "USA",
+    "Gabriel Bonfim"              => "Brazil",
+    "Joe Pyfer"                   => "USA",
+    "Bo Nickal"                   => "USA",
+    "Benoît Saint Denis"          => "France",
+    "Quillan Salkilld"            => "Australia",
+    "Robert Whittaker"            => "Australia",
+    "Bogdan Guskov"               => "Uzbekistan",
+    "Manel Kape"                  => "Angola",
+    "Joshua Van"                  => "Myanmar",
+    "Carlos Prates"               => "Brazil",
+    "Michael Morales"             => "Ecuador",
+    "Steve Garcia"                => "USA",
+    "Yair Rodriguez"              => "Mexico",
+    "Yair Rodríguez"              => "Mexico",
+    "Charles Oliveira"            => "Brazil",
+    "Diego Lopes"                 => "Brazil",
+    "Alex Pereira"                => "Brazil",
+    "Sergei Pavlovich"            => "Russia",
+    "Brandon Moreno"              => "Mexico",
+    "Israel Adesanya"             => "Nigeria",
+    "Shara Magomedov"             => "Russia",
+    "Ian Machado Garry"           => "Ireland",
+    "Yaroslav Amosov"             => "Ukraine",
+);
+
+sub get_country {
+    my ($fighter_name, $raw_country) = @_;
+    my $key = "";
+    if ($raw_country && $raw_country ne "default" && $raw_country ne "") {
+        $key = $raw_country;
+    } elsif ($fighter_name && $fighter_countries{$fighter_name}) {
+        $key = $fighter_countries{$fighter_name};
+    } else {
+        for my $k (keys %fighter_countries) {
+            if (index(lc($fighter_name // ""), lc($k)) != -1 || index(lc($k), lc($fighter_name // "")) != -1) {
+                $key = $fighter_countries{$k};
+                last;
+            }
+        }
+    }
+    return ($key, $flags{$key} // "");
+}
+
+sub normalize_weight {
+    my ($w) = @_;
+    return "MMA" unless defined $w;
+    $w =~ s/ bout$//i;
+    $w =~ s/^\s+|\s+$//g;
+
+    my @pairs = (
+        ["Women's Strawweight"   => "Women's Strawweight"],
+        ["W Strawweight"         => "Women's Strawweight"],
+        ["Women's Flyweight"     => "Women's Flyweight"],
+        ["W Flyweight"           => "Women's Flyweight"],
+        ["Women's Bantamweight"  => "Women's Bantamweight"],
+        ["W Bantamweight"        => "Women's Bantamweight"],
+        ["Women's Featherweight" => "Women's Featherweight"],
+        ["W Featherweight"       => "Women's Featherweight"],
+        ["Light Heavyweight"     => "Light Heavyweight"],
+        ["Heavyweight"           => "Heavyweight"],
+        ["Middleweight"          => "Middleweight"],
+        ["Welterweight"          => "Welterweight"],
+        ["Lightweight"           => "Lightweight"],
+        ["Featherweight"         => "Featherweight"],
+        ["Bantamweight"          => "Bantamweight"],
+        ["Flyweight"             => "Flyweight"],
+        ["Catchweight"           => "Catchweight"],
+        ["Bout"                  => "MMA"],
+    );
+
+    for my $p (@pairs) {
+        my ($pat, $norm) = @$p;
+        if ($w =~ /\Q$pat\E/i) {
+            return $norm;
+        }
+    }
+    return $w || "MMA";
+}
+
+sub read_cache {
+    if (-f $cache_file) {
+        if (open my $fh, '<:encoding(UTF-8)', $cache_file) {
+            local $/;
+            my $content = <$fh>;
+            close $fh;
+            return eval { decode_json($content) };
+        }
+    }
+    return undef;
+}
+
+# curl gets its arguments as a list, without a shell, so nothing in a URL can run as a command
+sub fetch {
+    open(my $fh, '-|', 'curl', @_) or return "";
+    local $/;
+    my $raw = <$fh> // "";
+    close $fh;
+    return $raw;
+}
+
+sub save_cache {
+    my ($data) = @_;
+    if (open my $fh, '>:encoding(UTF-8)', $cache_file) {
+        print $fh JSON::PP->new->utf8(0)->encode($data);
+        close $fh;
+    }
+}
+
+my $now_t = gmtime();
+my $start_d = ($now_t - 86400)->strftime("%Y%m%d");
+my $end_d = ($now_t + 180 * 86400)->strftime("%Y%m%d");
+my $espn_url = "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=$start_d-$end_d";
+my $espn_raw = fetch("-s", "--compressed", "--connect-timeout", "5", "--max-time", "10", $espn_url);
+my $espn_data = eval { JSON::PP->new->utf8->decode($espn_raw) };
+
+my @events = ();
+
+if ($espn_data && $espn_data->{events} && @{$espn_data->{events}}) {
+    for my $ev (@{$espn_data->{events}}) {
+        my $name = $ev->{name} // "UFC Event";
+        my $date = $ev->{date} // "";
+        my $first_comp = ($ev->{competitions} && @{$ev->{competitions}}) ? $ev->{competitions}[0] : {};
+        my $venue_name = $first_comp->{venue}{fullName} // "";
+        my $city = $first_comp->{venue}{address}{city} // "";
+        my $country = $first_comp->{venue}{address}{country} // "";
+
+        my $location = "";
+        if ($venue_name && $venue_name ne "A definir" && $venue_name !~ /^TBA$/i) {
+            $location = $venue_name;
+            if ($city) {
+                $location .= " • $city" . ($country ? ", $country" : "");
+            }
+        } elsif ($city) {
+            $location = $city . ($country ? ", $country" : "");
+        }
+
+        my $ts = 0;
+        my $date_str = "";
+        my $time_str = "";
+        if ($date =~ /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/) {
+            my ($y, $m, $d, $h, $min) = ($1, $2, $3, $4, $5);
+            $date_str = "$d/$m/$y";
+            $time_str = "$h:$min UTC";
+            eval {
+                my $tp = Time::Piece->strptime("$y-$m-$d $h:$min", "%Y-%m-%d %H:%M");
+                $ts = $tp->epoch;
+            };
+        }
+
+        my @confirmed = ();
+        my @rumored = ();
+        my @comps_rev = reverse @{$ev->{competitions} // []};
+
+        for my $c (@comps_rev) {
+            my $raw_type = $c->{type}{abbreviation} // $c->{type}{name} // "MMA";
+            my $type = normalize_weight($raw_type);
+            my $comps = $c->{competitors} // [];
+            next unless @$comps >= 2;
+            my $f1 = $comps->[0]{athlete}{displayName} // "";
+            my $f2 = $comps->[1]{athlete}{displayName} // "";
+            $f1 = "" if $f1 =~ /^(TBA|A definir)$/i;
+            $f2 = "" if $f2 =~ /^(TBA|A definir)$/i;
+            my $raw_c1 = $comps->[0]{athlete}{flag}{alt} // "";
+            my $raw_c2 = $comps->[1]{athlete}{flag}{alt} // "";
+
+            my ($c1, $fl1) = get_country($f1, $raw_c1);
+            my ($c2, $fl2) = get_country($f2, $raw_c2);
+
+            if ($f1 eq "" || $f2 eq "") {
+                push @rumored, {
+                    fighter1    => $f1,
+                    country1    => $c1,
+                    flag1       => $fl1,
+                    fighter2    => $f2,
+                    country2    => $c2,
+                    flag2       => $fl2,
+                    weight      => $type,
+                    isConfirmed => JSON::PP::false,
+                };
+            } else {
+                push @confirmed, {
+                    fighter1    => $f1,
+                    country1    => $c1,
+                    flag1       => $fl1,
+                    fighter2    => $f2,
+                    country2    => $c2,
+                    flag2       => $fl2,
+                    weight      => $type,
+                    isConfirmed => JSON::PP::true,
+                };
+            }
+        }
+
+        my $wiki_page = "";
+        if ($name =~ /UFC\s+(\d+)/i) {
+            $wiki_page = "UFC_$1";
+        } elsif ($name =~ /UFC Fight Night:\s*([^:]+)/i) {
+            my $matchup = $1;
+            $matchup =~ s/\s+/_/g;
+            $matchup =~ s/Rodriguez/Rodr%C3%ADguez/;
+            $wiki_page = "UFC_Fight_Night:_$matchup";
+        }
+
+        if ($wiki_page) {
+            # the page name comes from ESPN: percent-encode it (an existing %XX stays as it is)
+            utf8::encode($wiki_page) if utf8::is_utf8($wiki_page);
+            $wiki_page =~ s/([^A-Za-z0-9_.:%-])/sprintf("%%%02X", ord($1))/ge;
+            my $wiki_url = "https://en.wikipedia.org/w/api.php?action=parse&page=$wiki_page&prop=wikitext&format=json";
+            my $w_raw = fetch("-s", "--compressed", "--connect-timeout", "3", "--max-time", "5", "-A", "Mozilla/5.0", $wiki_url);
+            my $w_data = eval { JSON::PP->new->utf8->decode($w_raw) };
+            if ($w_data && $w_data->{parse} && $w_data->{parse}{wikitext}) {
+                my $wt = $w_data->{parse}{wikitext}{"*"};
+                if ($wt =~ /==\s*Announced bouts\s*==\n(.*?)(?=\n==|$)/s) {
+                    my $sec = $1;
+                    for my $line (split /\n/, $sec) {
+                        next unless $line =~ /^\*(.*)/;
+                        my $item = $1;
+                        $item =~ s/<ref.*?(?:<\/ref>|\/>)//gs;
+                        $item =~ s/\{\{in lang\|.*?\}\}//gs;
+                        $item =~ s/\[\[([^\|\]]+)\|([^\]]+)\]\]/$2/g;
+                        $item =~ s/\[\[([^\]]+)\]\]/$1/g;
+                        $item =~ s/\s+/ /g;
+                        $item =~ s/^\s+|\s+$//g;
+                        next unless $item;
+
+                        my ($wt_class, $f1_w, $f2_w) = ("MMA", "", "");
+                        if ($item =~ /^(.*?):\s*(.*?)\s+vs\.?\s+(.*)$/i) {
+                            $wt_class = normalize_weight($1);
+                            $f1_w = $2;
+                            $f2_w = $3;
+                        } elsif ($item =~ /^(.*?)\s+vs\.?\s+(.*)$/i) {
+                            $f1_w = $1;
+                            $f2_w = $2;
+                        }
+
+                        if ($f1_w && $f2_w) {
+                            my $already = 0;
+                            for my $cf (@confirmed) {
+                                my $c1 = lc($cf->{fighter1});
+                                my $c2 = lc($cf->{fighter2});
+                                my $w1 = lc($f1_w);
+                                my $w2 = lc($f2_w);
+                                if ((index($c1, $w1) != -1 || index($w1, $c1) != -1) &&
+                                    (index($c2, $w2) != -1 || index($w2, $c2) != -1)) {
+                                    $already = 1;
+                                    last;
+                                }
+                            }
+                            unless ($already) {
+                                my ($c1, $fl1) = get_country($f1_w, "");
+                                my ($c2, $fl2) = get_country($f2_w, "");
+                                push @rumored, {
+                                    fighter1    => $f1_w,
+                                    country1    => $c1,
+                                    flag1       => $fl1,
+                                    fighter2    => $f2_w,
+                                    country2    => $c2,
+                                    flag2       => $fl2,
+                                    weight      => $wt_class,
+                                    isConfirmed => JSON::PP::false,
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        my @named_rumors = grep { $_->{fighter1} ne "" || $_->{fighter2} ne "" } @rumored;
+        if (@named_rumors) {
+            @rumored = @named_rumors;
+        }
+
+        my @all_fights = (@confirmed, @rumored);
+
+        push @events, {
+            id              => $ev->{id} // "",
+            name            => $name,
+            date            => $date,
+            dateStr         => $date_str,
+            timeStr         => $time_str,
+            timestamp       => $ts,
+            venue           => $venue_name,
+            location        => $location,
+            confirmedCount  => scalar(@confirmed),
+            rumoredCount    => scalar(@rumored),
+            totalCount      => scalar(@all_fights),
+            confirmedFights => \@confirmed,
+            rumoredFights   => \@rumored,
+            fights          => \@all_fights
+        };
+    }
+}
+
+if (@events) {
+    save_cache(\@events);
+    print JSON::PP->new->utf8(0)->encode(\@events);
+} else {
+    my $cached = read_cache();
+    if ($cached) {
+        print JSON::PP->new->utf8(0)->encode($cached);
+    } else {
+        print "[]\n";
+    }
+}
+PL""") every 6h json timeout 30s status
+
+  state eventIndex = 0
+  state filterMode = "all" // "all", "confirmed", "rumors"
+
+  // Prefer live network data; fall back to local cache while loading
+  let liveList = events.ok ? events.out : null
+  let list = (liveList != null && len(liveList) > 0) ? liveList : (cached ?? [])
+  let totalEvents = len(list)
+  let validIndex = clamp(eventIndex, 0, max(0, totalEvents - 1))
+  let ev = totalEvents > 0 ? list[validIndex] : null
+
+  let confirmed = ev != null ? (ev.confirmedFights ?? []) : []
+  let rumored = ev != null ? (ev.rumoredFights ?? []) : []
+  let allFights = ev != null ? (ev.fights ?? []) : []
+
+  let isCompact = (tileWidth ?? 999) < 300
+
+  let evDateText = ev == null ? "" : (ev.timestamp ?? 0) > 0 ? fmtTime(ev.timestamp, "dd/MM/yyyy") : (ev.dateStr ?? "")
+  let evTimeText = ev == null ? "" : (ev.timestamp ?? 0) > 0 ? fmtTime(ev.timestamp, "HH:mm") : (ev.timeStr ?? "")
+  let evLocationText = ev == null ? "" : ((ev.location ?? "") != "" ? ev.location : str.location_tbd)
+
+  onTap: screen()
+
+  Column {
+    gap: isCompact ? 4 : 6
+    fill: true
+
+    // Widget Header
+    Row {
+      align: center
+      Text {
+        text: isCompact ? str.title_short : str.title_long
+        style: label
+        color: red
+        bold: true
+        weight: 1
+      }
+
+      if totalEvents > 0 {
+        Row {
+          gap: 4
+          align: center
+          Button {
+            text: "‹"
+            onTap: eventIndex = max(0, validIndex - 1)
+          }
+          Text {
+            text: "${validIndex + 1}/${totalEvents}"
+            style: small
+            color: muted
+          }
+          Button {
+            text: "›"
+            onTap: eventIndex = min(totalEvents - 1, validIndex + 1)
+          }
+        }
+      }
+    }
+
+    if ev == null {
+      Column {
+        weight: 1
+        align: center
+        justify: center
+        Text { text: str.loading; style: muted; align: center }
+      }
+    } else {
+      // Main Event Info
+      Column {
+        gap: 2
+        Text {
+          text: ev.name
+          style: isCompact ? "body" : "title"
+          bold: true
+          color: foreground
+          maxLines: 1
+        }
+        Row {
+          gap: 6
+          align: center
+          Text {
+            text: "📅 ${evDateText}"
+            style: small
+            color: accent
+            bold: true
+          }
+          Text {
+            text: "•"
+            style: small
+            color: muted
+          }
+          Text {
+            text: evLocationText
+            style: small
+            color: muted
+            maxLines: 1
+            weight: 1
+          }
+        }
+      }
+
+      // Badges with confirmed vs rumored fight counts
+      Row {
+        gap: 6
+        Row {
+          padding: [6, 2]
+          background: alpha(green, 0.18)
+          radius: 4 * corners
+          Text {
+            text: str.confirmed_count(ev.confirmedCount)
+            style: small
+            color: green
+            bold: true
+          }
+        }
+        Row {
+          padding: [6, 2]
+          background: alpha(yellow, 0.18)
+          radius: 4 * corners
+          Text {
+            text: str.rumored_count(ev.rumoredCount)
+            style: small
+            color: yellow
+            bold: true
+          }
+        }
+      }
+
+      // Preview of top fights on the card
+      Column {
+        weight: 1
+        gap: 3
+        clip: true
+
+        for f, i in allFights.take(isCompact ? 2 : 3) key "${f.fighter1}-${f.fighter2}-${i}" {
+          Row {
+            align: center
+            gap: 6
+            padding: [4, 2]
+
+            if f.isConfirmed {
+              Text {
+                text: isCompact ? "✓" : str.confirmed_badge
+                style: label
+                color: green
+                bold: true
+                width: isCompact ? 16 : 90
+              }
+            } else {
+              Text {
+                text: isCompact ? "?" : str.rumor_badge
+                style: label
+                color: yellow
+                bold: true
+                width: isCompact ? 16 : 90
+              }
+            }
+
+            Column {
+              weight: 1
+              gap: 0
+              let f1Name = (f.fighter1 ?? "") != "" ? f.fighter1 : str.tbd
+              let f2Name = (f.fighter2 ?? "") != "" ? f.fighter2 : str.tbd
+              let c1Name = (f.country1 ?? "") != "" ? str.country(f.country1) : ""
+              let c2Name = (f.country2 ?? "") != "" ? str.country(f.country2) : ""
+              let c1Tag = trim("${c1Name} ${f.flag1 ?? ''}")
+              let c2Tag = trim("${c2Name} ${f.flag2 ?? ''}")
+              let c1 = c1Tag != "" ? " (${c1Tag})" : ""
+              let c2 = c2Tag != "" ? " (${c2Tag})" : ""
+              Text {
+                text: "${f1Name}${c1} vs ${f2Name}${c2}"
+                style: body
+                bold: i == 0
+                maxLines: 1
+              }
+              Text {
+                text: str.weight(f.weight ?? "MMA")
+                style: label
+                color: muted
+                maxLines: 1
+              }
+            }
+          }
+        }
+      }
+
+      // Footer
+      Row {
+        fill: width
+        justify: spaceBetween
+        align: center
+        Text {
+          text: str.tap_full
+          style: label
+          color: muted
+        }
+        Text {
+          text: "6h ⏱"
+          style: label
+          color: muted
+        }
+      }
+    }
+  }
+
+  // FULL SCREEN VIEW ON WIDGET TAP
+  screen {
+    title: ev != null ? ev.name : str.screen_title
+
+    Column {
+      scroll: true
+      onPull: refresh()
+      gap: 12
+      padding: 12
+
+      if ev != null {
+        // Opened event header
+        Column {
+          gap: 6
+          padding: 10
+          background: alpha(surface, 0.5)
+          radius: 8 * corners
+
+          Text {
+            text: ev.name
+            fontSize: 22
+            bold: true
+            color: accent
+          }
+
+          Row {
+            gap: 6
+            align: center
+            Text { text: str.date_label("${evDateText} (${evTimeText})"); style: body; bold: true }
+          }
+          Row {
+            gap: 6
+            align: center
+            Text { text: str.location_label(evLocationText); style: body; color: muted }
+          }
+
+          Row {
+            gap: 8
+            padding: [0, 4]
+            Text {
+              text: str.total_fights(ev.totalCount)
+              style: small
+              color: foreground
+            }
+            Text {
+              text: "•"
+              style: small
+              color: muted
+            }
+            Text {
+              text: str.confirmed_count(ev.confirmedCount)
+              style: small
+              color: green
+              bold: true
+            }
+            Text {
+              text: "•"
+              style: small
+              color: muted
+            }
+            Text {
+              text: str.rumored_count(ev.rumoredCount)
+              style: small
+              color: yellow
+              bold: true
+            }
+          }
+        }
+
+        // Event switcher
+        Column {
+          gap: 4
+          Text { text: str.upcoming_events; style: label; color: muted }
+          Flow {
+            gap: 6
+            for otherEv, idx in list key otherEv.id {
+              let isCur = idx == validIndex
+              Button {
+                text: otherEv.name
+                color: isCur ? accent : muted
+                onTap: eventIndex = idx
+              }
+            }
+          }
+        }
+
+        // Fight filter buttons
+        Row {
+          gap: 6
+          Button {
+            text: str.filter_all(ev.totalCount)
+            color: filterMode == "all" ? accent : muted
+            onTap: filterMode = "all"
+          }
+          Button {
+            text: str.confirmed_count(ev.confirmedCount)
+            color: filterMode == "confirmed" ? green : muted
+            onTap: filterMode = "confirmed"
+          }
+          Button {
+            text: str.rumored_count(ev.rumoredCount)
+            color: filterMode == "rumors" ? yellow : muted
+            onTap: filterMode = "rumors"
+          }
+        }
+
+        // CONFIRMED FIGHTS LIST
+        if (filterMode == "all" || filterMode == "confirmed") && len(confirmed) > 0 {
+          Column {
+            gap: 6
+            Row {
+              align: center
+              gap: 6
+              Text { text: str.confirmed_heading; style: label; color: green; bold: true; weight: 1 }
+              Text { text: str.fight_count(len(confirmed)); style: small; color: muted }
+            }
+
+            for f, idx in confirmed key "${f.fighter1}-${f.fighter2}-${idx}" {
+              let f1Name = (f.fighter1 ?? "") != "" ? f.fighter1 : str.tbd
+              let f2Name = (f.fighter2 ?? "") != "" ? f.fighter2 : str.tbd
+              let c1Name = (f.country1 ?? "") != "" ? str.country(f.country1) : ""
+              let c2Name = (f.country2 ?? "") != "" ? str.country(f.country2) : ""
+              let c1Tag = trim("${c1Name} ${f.flag1 ?? ''}")
+              let c2Tag = trim("${c2Name} ${f.flag2 ?? ''}")
+
+              Column {
+                padding: 10
+                gap: 4
+                background: alpha(surface, 0.6)
+                border: 1
+                borderColor: alpha(green, 0.4)
+                radius: 6 * corners
+
+                Row {
+                  align: center
+                  Row {
+                    padding: [6, 2]
+                    background: alpha(green, 0.2)
+                    radius: 4 * corners
+                    Text { text: str.confirmed_badge; style: label; color: green; bold: true }
+                  }
+                  Spacer { weight: 1 }
+                  Text { text: str.weight(f.weight ?? "MMA"); style: label; color: muted }
+                }
+
+                Row {
+                  align: center
+                  gap: 8
+                  Column {
+                    weight: 1
+                    gap: 1
+                    Text {
+                      text: f1Name
+                      style: body
+                      bold: idx == 0
+                      color: foreground
+                    }
+                    if c1Tag != "" {
+                      Text {
+                        text: c1Tag
+                        style: small
+                        color: muted
+                      }
+                    }
+                  }
+                  Text {
+                    text: "vs"
+                    style: label
+                    color: red
+                    bold: true
+                  }
+                  Column {
+                    weight: 1
+                    align: end
+                    gap: 1
+                    Text {
+                      text: f2Name
+                      style: body
+                      bold: idx == 0
+                      color: foreground
+                      align: end
+                    }
+                    if c2Tag != "" {
+                      Text {
+                        text: c2Tag
+                        style: small
+                        color: muted
+                        align: end
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // RUMORED / UNCONFIRMED FIGHTS LIST
+        if (filterMode == "all" || filterMode == "rumors") && len(rumored) > 0 {
+          Column {
+            gap: 6
+            Row {
+              align: center
+              gap: 6
+              Text { text: str.rumors_heading; style: label; color: yellow; bold: true; weight: 1 }
+              Text { text: str.fight_count(len(rumored)); style: small; color: muted }
+            }
+
+            for f, idx in rumored key "${f.fighter1}-${f.fighter2}-${idx}" {
+              let f1Name = (f.fighter1 ?? "") != "" ? f.fighter1 : str.tbd
+              let f2Name = (f.fighter2 ?? "") != "" ? f.fighter2 : str.tbd
+              let c1Name = (f.country1 ?? "") != "" ? str.country(f.country1) : ""
+              let c2Name = (f.country2 ?? "") != "" ? str.country(f.country2) : ""
+              let c1Tag = trim("${c1Name} ${f.flag1 ?? ''}")
+              let c2Tag = trim("${c2Name} ${f.flag2 ?? ''}")
+
+              Column {
+                padding: 10
+                gap: 4
+                background: alpha(surface, 0.4)
+                border: 1
+                borderColor: alpha(yellow, 0.4)
+                radius: 6 * corners
+
+                Row {
+                  align: center
+                  Row {
+                    padding: [6, 2]
+                    background: alpha(yellow, 0.2)
+                    radius: 4 * corners
+                    Text { text: str.rumor_badge_long; style: label; color: yellow; bold: true }
+                  }
+                  Spacer { weight: 1 }
+                  Text { text: str.weight(f.weight ?? "MMA"); style: label; color: muted }
+                }
+
+                Row {
+                  align: center
+                  gap: 8
+                  Column {
+                    weight: 1
+                    gap: 1
+                    Text {
+                      text: f1Name
+                      style: body
+                      italic: true
+                      color: foreground
+                    }
+                    if c1Tag != "" {
+                      Text {
+                        text: c1Tag
+                        style: small
+                        color: muted
+                      }
+                    }
+                  }
+                  Text {
+                    text: "vs"
+                    style: label
+                    color: muted
+                  }
+                  Column {
+                    weight: 1
+                    align: end
+                    gap: 1
+                    Text {
+                      text: f2Name
+                      style: body
+                      italic: true
+                      color: foreground
+                      align: end
+                    }
+                    if c2Tag != "" {
+                      Text {
+                        text: c2Tag
+                        style: small
+                        color: muted
+                        align: end
+                      }
+                    }
+                  }
+                }
+
+                Text {
+                  text: str.rumor_note
+                  style: small
+                  color: muted
+                  italic: true
+                }
+              }
+            }
+          }
+        }
+
+        // Footer actions
+        Row {
+          fill: width
+          justify: spaceBetween
+          align: center
+          padding: [0, 10]
+          Button {
+            text: str.refresh_now
+            color: muted
+            onTap: refresh()
+          }
+          Button {
+            text: str.close
+            color: accent
+            onTap: close()
+          }
+        }
+      } else {
+        Text { text: str.no_data; style: muted }
+      }
+    }
+  }
+}
