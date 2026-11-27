@@ -4,7 +4,7 @@ widget "memory-match" {
   minSize: 4x5
   padding: 10
   fps: wait > 0 ? 30 : 1
-  meta { owl: 23; description: "Find the pairs: flip two cards, a match stays open, a miss turns back over. Ten themes, a move count, a timer with pause, and stars"; version: "1.3"; license: "MIT"; author: "rcrohmana"; category: "games" }
+  meta { owl: 23; description: "Find the pairs: flip two cards, a match stays open, a miss turns back over. Ten themes, a move count, a timer with pause, and stars"; version: "1.4"; license: "MIT"; author: "rcrohmana"; category: "games" }
   requires { pacman: [] }
 
   let PAIRS = range(20).map(i => floor(i / 2))   // 4 columns x 5 rows, 10 pairs
@@ -54,7 +54,7 @@ widget "memory-match" {
   // a missed pair stays up a moment, then turns back over
   every frame {
     if wait > 0 {
-      wait = wait - dt
+      wait = wait - min(dt, 0.05)   // at 1 fps the first dt can be ~1 s, which would skip the shake
       if wait <= 0 {
         wait = 0
         open = []
