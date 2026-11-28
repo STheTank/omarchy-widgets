@@ -1,5 +1,5 @@
 app "Omarchy Real" {
-  meta { owl: 16; description: "Sets up and controls a nested Omarchy session: installs its own scripts, then launches and stops only that session"; version: "1.2"; license: "MIT"; category: "system" }
+  meta { owl: 16; description: "Sets up and controls a nested Omarchy session: installs its own scripts, then launches and stops only that session"; version: "1.3"; license: "MIT"; category: "system" }
   title: str.appTitle
   icon: """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
     <rect width="256" height="256" rx="56" fill="#1A1B26"/>
@@ -26,6 +26,8 @@ app "Omarchy Real" {
       scripts: "scripts"
       installed: "installed"
       missing: "tap install"
+      compositor: "compositor"
+      compositorMissing: "missing – see README"
       checking: "checking…"
       setup: "install / refresh default scripts"
       setupHint: "Writes session.sh, screensaver.sh and hyprland.lua into ~/.local/share/omarchy-real/ and uses them by default."
@@ -57,6 +59,15 @@ R=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 D=$R/omarchy-real
 mkdir -p "$D" "$APP"
 
+# Replace only the session this script started before.
+if [ "${OMARCHY_REAL_DETACHED:-}" != 1 ]; then
+  old=$(cat "$D/session.pid" 2>/dev/null || true)
+  if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then
+    kill -TERM -- -"$old" 2>/dev/null || true
+    sleep 1
+  fi
+fi
+
 # Detach once: the compositor must outlive the launcher action or shell.
 if [ "${OMARCHY_REAL_DETACHED:-}" != 1 ]; then
   export OMARCHY_REAL_DETACHED=1
@@ -65,18 +76,19 @@ if [ "${OMARCHY_REAL_DETACHED:-}" != 1 ]; then
   exit 0
 fi
 
-# Replace only the session this script started before.
-old=$(cat "$D/session.pid" 2>/dev/null || true)
-if [ -n "$old" ] && [ "$old" != "$$" ] && kill -0 "$old" 2>/dev/null; then
-  kill -TERM -- -"$old" 2>/dev/null || true
-  sleep 1
-fi
 echo $$ > "$D/session.pid"
 
 # Free only our previous socket, not the launcher's Wayland display.
 oldsock=$(cat "$D/session.socket" 2>/dev/null || true)
 [ -n "$oldsock" ] && rm -f "$R/$oldsock" "$R/$oldsock.lock" 2>/dev/null || true
-find "$R/hypr" "$R/quickshell/by-id" "$R/quickshell/by-path" -mindepth 1 -delete 2>/dev/null || true
+# Clear only Hyprland instance dirs whose compositor is gone.
+for d in "$R"/hypr/*; do
+  [ -f "$d/hyprland.lock" ] || continue
+  hp=$(head -n1 "$d/hyprland.lock" 2>/dev/null || true)
+  if [ -z "$hp" ] || ! kill -0 "$hp" 2>/dev/null; then
+    rm -rf "$d" 2>/dev/null || true
+  fi
+done
 
 n=1
 while [ -e "$R/wayland-$n" ] || [ -e "$R/wayland-$n.lock" ]; do n=$((n + 1)); done
@@ -149,6 +161,12 @@ mkdir -p "$D"
 
 # Detach once so closing the launcher action does not stop the screensaver.
 if [ "${OMARCHY_REAL_SAVER_DETACHED:-}" != 1 ]; then
+  # Replace only the screensaver this script started before.
+  old=$(cat "$D/saver.pid" 2>/dev/null || true)
+  if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then
+    kill -TERM -- -"$old" 2>/dev/null || true
+    sleep 1
+  fi
   export OMARCHY_REAL_SAVER_DETACHED=1
   setsid nohup "$0" "$@" >"$D/saver.log" 2>&1 </dev/null &
   echo $! > "$D/saver.pid"
@@ -283,6 +301,9 @@ OMARCHY_REAL_HYPR_EOF
     A="$HOME/.local/share/omarchy-real"
     [ -x "$A/session.sh" ] && [ -x "$A/screensaver.sh" ] && printf yes || printf no
   """) every 10s
+  source compositor = cmd("""
+    [ -x "${OMARCHY_REAL_PREFIX:-$HOME/.local/share/omarchy-real}/bin/Hyprland" ] && printf yes || printf no
+  """) every 10s
 
   state confirm = ""
 
@@ -312,6 +333,11 @@ OMARCHY_REAL_HYPR_EOF
         Text { text: str.scripts; font: mono; fontSize: 10; color: muted }
         Text { text: installed == "yes" ? str.installed : str.missing; font: mono; fontSize: 10; color: installed == "yes" ? green : muted; weight: 1 }
       }
+      Row {
+        gap: 6
+        Text { text: str.compositor; font: mono; fontSize: 10; color: muted }
+        Text { text: compositor == "yes" ? str.installed : str.compositorMissing; font: mono; fontSize: 10; color: compositor == "yes" ? green : muted; weight: 1 }
+      }
     }
 
     Column {
@@ -322,7 +348,6 @@ OMARCHY_REAL_HYPR_EOF
         padding: [12, 16]
         radius: 8 * corners
         background: surface
-        Text { text: str.setup; fontSize: 12; color: foreground }
         Text { text: str.setupHint; fontSize: 10; color: muted; maxLines: 3 }
       }
       Box {
