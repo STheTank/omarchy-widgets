@@ -2,7 +2,7 @@ app "readeck" {
   edge: true
   statusBar: true
 
-  meta { owl: 18; description: "A Readeck client for a server or an export: lists, labels, search, a reader with pictures, notes and bulk changes. Summary and tidy-up use Claude Code, which sends the text to Anthropic"; version: "2.4"; license: "MIT"; category: "news" }
+  meta { owl: 18; description: "A Readeck client for a server or an export: lists, labels, search, a reader with pictures, notes and bulk changes. Summary and tidy-up use Claude Code, which sends the text to Anthropic"; version: "2.4.1"; license: "MIT"; category: "news" }
 
   title: ""
   back: readId != "" || showMenu || showSearch || showAdd || picking || view == "setup" || view == "all" || label != ""
@@ -3540,7 +3540,7 @@ echo ready""") every 1h
               fill: width
               gap: 0
               padding: [4, 4]
-              NavTab { name: "unread"; title: "Unread"; icon: icUnread; activeIcon: icUnread; badge: counted.unread }
+              NavTab { name: "unread"; title: "Unread"; icon: icUnread; activeIcon: icUnread }
               NavTab { name: "favorite"; title: "Favorites"; icon: icFav; activeIcon: icFavFill }
               NavTab { name: "archived"; title: "Archive"; icon: icArchive; activeIcon: icArchive }
               NavTab { name: "labels"; title: "Labels"; icon: icLabels; activeIcon: icLabels }
