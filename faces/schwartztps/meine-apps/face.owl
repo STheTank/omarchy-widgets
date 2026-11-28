@@ -2,7 +2,7 @@ face "meine-apps" {
   // A whole page left of page 1: your apps, sorted into categories.
   // Tap opens an app, long-press shows its menu (move, reorder, remove).
   // "edit" at the top: rename, reorder and delete categories, add apps.
-  meta { owl: 16; description: "Your apps in categories: sorted automatically at first, then arranged your way"; version: "1.0"; license: "MIT"; category: "home" }
+  meta { owl: 16; description: "Your apps in categories: sorted automatically at first, then arranged your way"; version: "1.1"; license: "MIT"; category: "home" }
 
   strings {
     en {
@@ -138,7 +138,7 @@ face "meine-apps" {
               align: center
               gap: 8
               Box { size: 4; height: 14; radius: 2; background: tint }
-              Text { text: c.name; font: sans; fontSize: 14; fontWeight: 600; color: tint; weight: 1; maxLines: 1 }
+              Text { text: c.name; font: sans; fontSize: 14; fontWeight: 600; color: mix(tint, foreground, 0.35); weight: 1; maxLines: 1 }
               Text { text: "${len(shown)}"; font: sans; fontSize: 12; color: muted; padding: [0, 0, 4, 0] }
             }
           }
