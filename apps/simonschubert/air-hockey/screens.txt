@@ -1,0 +1,7 @@
+# The store's screens (scripts/store-previews.sh): every frame doesn't run while they're drawn, so still holds each one.
+# The store's preview: a match against the computer at 4 to 3, a shot on its way to the red goal.
+still = true; ready = true; mode = "play"; vsCpu = true; paused = false; s1 = 4; s2 = 3; scorer = 0; gt = 30; px = 236; py = 262; pvx = -300; pvy = -900; ax = 150; ay = 545; bx = 252; by = 128; trail = [[236.0,262],[229.5,281],[223.0,300],[216.5,319],[210.0,338],[203.5,357],[197.0,376],[190.5,395],[184.0,414],[177.5,433],[171.0,452],[164.5,471]]; bits = [{"x":170.0,"y":505.0,"vx":160.0,"vy":0.0,"life":0.3,"c":1},{"x":150.4,"y":513.8,"vx":-118.0,"vy":108.1,"life":0.3,"c":1},{"x":161.4,"y":489.1,"vx":14.0,"vy":-159.4,"life":0.3,"c":1},{"x":171.6,"y":520.1,"vx":97.3,"vy":127.0,"life":0.3,"c":1},{"x":138.3,"y":501.2,"vx":-157.6,"vy":-27.9,"life":0.3,"c":1},{"x":181.1,"y":491.6,"vx":135.0,"vy":-85.9,"life":0.3,"c":1},{"x":152.7,"y":532.0,"vx":-41.6,"vy":154.5,"life":0.3,"c":1}]
+# The menu, over a match the computer plays itself.
+mode = "title"; level = 1; wins = [3, 5, 1]; losses = [0, 2, 4]; px = 52; py = 330; ax = 300; ay = 668; bx = 120; by = 118; trail = [[52,330],[61,348],[70,366],[79,384],[88,402],[97,420],[106,438]]; bits = []
+# Two players: the red side has won 7 to 5, and each reads the result from their own end.
+mode = "over"; vsCpu = false; s1 = 5; s2 = 7; px = 190; py = 724; ax = 250; ay = 640; bx = 170; by = 110; trail = []; bits = []

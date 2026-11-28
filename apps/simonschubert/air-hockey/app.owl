@@ -1,0 +1,521 @@
+app "air hockey" {
+  meta { owl: 23; description: "Air hockey on a neon table: play the computer at three levels, or a friend across the phone with a finger each. First to seven wins"; version: "1.0"; license: "MIT"; category: "games" }
+  // How it works: `every frame` moves the mallets and the puck by their speed times the seconds
+  // since the last frame. A mallet goes where its finger is: onTouch gives every finger down, and
+  // the one that went down in the bottom half is the blue mallet's, the one in the top half the
+  // red one's. Against the computer the red mallet picks its own spot: back in front of its goal
+  // while the puck is away, across the puck's path when a shot comes in, and behind the puck to
+  // strike it at the blue goal otherwise. The puck bounces off the rails, the mallets and the
+  // goal posts; past a goal line between the posts it's a goal.
+  title: ""
+  statusBar: false
+  edge: true
+  fps: mode == "title" || paused || mode == "over" ? (modes.saver ? 15 : 30) : 60
+  back: mode != "title"
+  onBack: {
+    if mode == "over" || paused {
+      mode = "title"
+      paused = false
+      fingers = []
+    } else {
+      paused = true
+    }
+  }
+  source modes = android.modes
+  icon: """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+    <defs><clipPath id="t"><rect width="256" height="256" rx="56"/></clipPath></defs>
+    <g clip-path="url(#t)">
+      <rect width="256" height="256" fill="#151a2e"/>
+      <rect x="-20" y="118" width="296" height="10" fill="#3b4670"/>
+      <circle cx="128" cy="123" r="62" fill="none" stroke="#3b4670" stroke-width="10"/>
+      <path d="M76 0H180V14A14 14 0 0 1 166 28H90A14 14 0 0 1 76 14Z" fill="#f7768e"/>
+      <path d="M76 256H180V242A14 14 0 0 0 166 228H90A14 14 0 0 0 76 242Z" fill="#7aa2f7"/>
+      <path d="M150 62L196 96" stroke="#e6ebff" stroke-opacity="0.35" stroke-width="16" stroke-linecap="round"/>
+      <circle cx="140" cy="54" r="22" fill="#e6ebff"/>
+      <circle cx="140" cy="54" r="10" fill="#aab4dc"/>
+      <circle cx="108" cy="172" r="60" fill="#0b0e1a" fill-opacity="0.45"/>
+      <circle cx="102" cy="164" r="60" fill="#7aa2f7"/>
+      <circle cx="102" cy="164" r="43" fill="#4a6fd0"/>
+      <circle cx="102" cy="164" r="26" fill="#a9c1ff"/>
+      <circle cx="94" cy="156" r="10" fill="#e6ebff"/>
+    </g>
+  </svg>"""
+
+  strings {
+    en { one: "1 player"; two: "2 players"; easy: "easy"; normal: "normal"; hard: "hard"; win: "you win"; lose: "you lose"; again: "again"; menu: "menu"; resume: "resume"; paused: "paused"; record: (w, l) => "won ${w} · lost ${l}"; first: n => "first to ${n} wins" }
+    id { one: "1 pemain"; two: "2 pemain"; easy: "mudah"; normal: "sedang"; hard: "sulit"; win: "kamu menang"; lose: "kamu kalah"; again: "lagi"; menu: "menu"; resume: "lanjut"; paused: "jeda"; record: (w, l) => "menang ${w} · kalah ${l}"; first: n => "yang pertama ${n} menang" }
+    es { one: "1 jugador"; two: "2 jugadores"; easy: "fácil"; normal: "normal"; hard: "difícil"; win: "ganas"; lose: "pierdes"; again: "otra"; menu: "menú"; resume: "seguir"; paused: "pausa"; record: (w, l) => "ganadas ${w} · perdidas ${l}"; first: n => "gana quien llegue a ${n}" }
+    pt { one: "1 jogador"; two: "2 jogadores"; easy: "fácil"; normal: "normal"; hard: "difícil"; win: "você venceu"; lose: "você perdeu"; again: "de novo"; menu: "menu"; resume: "continuar"; paused: "pausa"; record: (w, l) => "vitórias ${w} · derrotas ${l}"; first: n => "vence quem fizer ${n}" }
+    de { one: "1 spieler"; two: "2 spieler"; easy: "leicht"; normal: "normal"; hard: "schwer"; win: "gewonnen"; lose: "verloren"; again: "nochmal"; menu: "menü"; resume: "weiter"; paused: "pause"; record: (w, l) => "gewonnen ${w} · verloren ${l}"; first: n => "wer zuerst ${n} hat, gewinnt" }
+    zh { one: "单人"; two: "双人"; easy: "简单"; normal: "普通"; hard: "困难"; win: "你赢了"; lose: "你输了"; again: "再来"; menu: "菜单"; resume: "继续"; paused: "已暂停"; record: (w, l) => "胜 ${w} · 负 ${l}"; first: n => "先得 ${n} 分者胜" }
+    ru { one: "1 игрок"; two: "2 игрока"; easy: "легко"; normal: "средне"; hard: "сложно"; win: "победа"; lose: "поражение"; again: "ещё раз"; menu: "меню"; resume: "дальше"; paused: "пауза"; record: (w, l) => "побед ${w} · поражений ${l}"; first: n => "игра до ${n} голов" }
+    ja { one: "1人で"; two: "2人で"; easy: "かんたん"; normal: "ふつう"; hard: "むずかしい"; win: "あなたの勝ち"; lose: "あなたの負け"; again: "もう一度"; menu: "メニュー"; resume: "つづける"; paused: "一時停止"; record: (w, l) => "${w}勝 · ${l}敗"; first: n => "${n}点先取で勝ち" }
+    uk { one: "1 гравець"; two: "2 гравці"; easy: "легко"; normal: "середньо"; hard: "складно"; win: "перемога"; lose: "поразка"; again: "ще раз"; menu: "меню"; resume: "далі"; paused: "пауза"; record: (w, l) => "перемог ${w} · поразок ${l}"; first: n => "гра до ${n} голів" }
+    fr { one: "1 joueur"; two: "2 joueurs"; easy: "facile"; normal: "normal"; hard: "difficile"; win: "gagné"; lose: "perdu"; again: "rejouer"; menu: "menu"; resume: "reprendre"; paused: "pause"; record: (w, l) => "gagnées ${w} · perdues ${l}"; first: n => "le premier à ${n} gagne" }
+    tr { one: "1 oyuncu"; two: "2 oyuncu"; easy: "kolay"; normal: "orta"; hard: "zor"; win: "kazandın"; lose: "kaybettin"; again: "tekrar"; menu: "menü"; resume: "devam"; paused: "duraklatıldı"; record: (w, l) => "galibiyet ${w} · mağlubiyet ${l}"; first: n => "${n} sayıya ilk ulaşan kazanır" }
+    it { one: "1 giocatore"; two: "2 giocatori"; easy: "facile"; normal: "normale"; hard: "difficile"; win: "hai vinto"; lose: "hai perso"; again: "ancora"; menu: "menu"; resume: "riprendi"; paused: "pausa"; record: (w, l) => "vinte ${w} · perse ${l}"; first: n => "vince chi arriva a ${n}" }
+  }
+
+  let FONT = "https://raw.githubusercontent.com/google/fonts/main/ofl/audiowide/Audiowide-Regular.ttf"
+  // goals to win
+  let WIN = 7
+
+  // "title" (the menu, over a match the computer plays itself), "play", "goal" (the pause after one) or "over"
+  state mode = "title"
+  state paused = false
+  state vsCpu = true
+  // the computer's level: 0 easy, 1 normal, 2 hard
+  state level = 1 persist
+  // matches won and lost against the computer, per level
+  state wins = [0, 0, 0] persist
+  state losses = [0, 0, 0] persist
+  // goals: s1 the bottom (blue) player's, s2 the top (red) one's
+  state s1 = 0
+  state s2 = 0
+  // game time, in seconds
+  state gt = 0
+  // the puck, and how fast it goes (dp a second); not x, y or vx, which handlers' values would hide
+  state px = 200
+  state py = 400
+  state pvx = 0
+  state pvy = 0
+  // the mallets: a is the bottom one, b the top one
+  state ax = 200
+  state ay = 700
+  state bx = 200
+  state by = 100
+  // every finger down, from onTouch
+  state fingers = []
+  // where the puck has just been, newest first
+  state trail = []
+  state bits = []
+  // who scored last (1 or 2) and when
+  state scorer = 0
+  state goalAt = -10
+  state hitAt = -10
+  // the table is laid out once the screen's size is known
+  state ready = false
+  // set by a button: the next frame puts everything in place for a new match
+  state startReq = false
+  // set by the store's screenshots (screens.txt) to hold a scene still while it's drawn in each theme
+  state still = false
+
+  let W = screenWidth ?? 400
+  let H = screenHeight ?? 800
+  let TOP = max(screenTop ?? 0, 8)
+  let BOT = max(screenInset ?? 0, 8)
+  // everything is sized for a screen 400 dp wide
+  let S = clamp(W / 400, 0.8, 1.5)
+  // puck and mallet radius, and how near their middles come
+  let RP = 15 * S
+  let RM = 30 * S
+  let REACH = RP + RM
+  // the goals' depth behind the line, and the rink inside the rails
+  let GD = 18 * S
+  let L = 10
+  let R = W - 10
+  let T = TOP + 6 + GD
+  let B = H - BOT - 6 - GD
+  let CX = W / 2
+  let CY = (T + B) / 2
+  // the goal mouth's width, and how far out a mallet waits
+  let GW = (R - L) * 0.42
+  let HOME = (B - T) * 0.13
+  let VMAX = 1500 * S
+  let C1 = blue
+  let C2 = red
+
+  every frame {
+    if !ready {
+      px = CX
+      py = CY
+      pvx = 150 * S
+      pvy = 330 * S
+      ax = CX
+      ay = B - HOME
+      bx = CX
+      by = T + HOME
+      ready = true
+    }
+    if startReq {
+      startReq = false
+      mode = "play"
+      paused = false
+      s1 = 0
+      s2 = 0
+      scorer = 0
+      // against the computer the player serves; two players race for it
+      px = CX
+      py = vsCpu ? CY + (B - T) * 0.16 : CY
+      pvx = 0
+      pvy = 0
+      ax = CX
+      ay = B - HOME
+      bx = CX
+      by = T + HOME
+      trail = []
+      bits = []
+      fingers = []
+    }
+    if !still && !paused {
+      let h = min(dt, 0.034)
+      gt = gt + h
+      bits = bits.map(p => merge(p, {x: p.x + p.vx * h, y: p.y + p.vy * h, vx: p.vx * (1 - 2.5 * h), vy: p.vy * (1 - 2.5 * h), life: p.life - h})).filter(p => p.life > 0)
+
+      // After a goal: the match ends, or the side that let it in serves.
+      if mode == "goal" && gt >= goalAt + 1.2 {
+        if s1 >= WIN || s2 >= WIN {
+          mode = "over"
+          fingers = []
+          if vsCpu && s1 > s2 { wins = set(wins, level, (wins[level] ?? 0) + 1) }
+          if vsCpu && s2 > s1 { losses = set(losses, level, (losses[level] ?? 0) + 1) }
+        } else {
+          mode = "play"
+          px = CX
+          py = scorer == 1 ? CY - (B - T) * 0.16 : CY + (B - T) * 0.16
+          pvx = 0
+          pvy = 0
+          trail = []
+        }
+      }
+
+      if mode != "over" {
+        let demo = mode == "title"
+        let live = mode == "play" || demo
+
+        // The bottom mallet: under the finger that went down in its half. On the title a simple
+        // player of its own: at the puck when that's in front of it, around it when it's behind.
+        let fa = demo ? null : fingers.find(f => f.startY > CY)
+        let aFront = py > CY + 4 && py < ay
+        let aSide = ax >= px ? 1 : -1
+        let atx = !demo ? (fa != null ? fa.x : ax) : (aFront ? px + sin(gt * 1.9) * 14 * S : (py > CY + 4 ? px + aSide * (REACH + 10) : clamp(CX + (px - CX) * 0.5, CX - GW / 2, CX + GW / 2)))
+        let aty = !demo ? (fa != null ? fa.y : ay) : (aFront ? py : (py > CY + 4 ? py + REACH : B - HOME))
+        let aStep = (demo ? 560 : 3400) * S * h
+        let acx = clamp(atx, L + RM, R - RM)
+        let acy = clamp(aty, CY + RM, B - RM)
+        let ad = sqrt((acx - ax) * (acx - ax) + (acy - ay) * (acy - ay))
+        let ak = ad > aStep ? aStep / ad : 1
+        let nax = ax + (acx - ax) * ak
+        let nay = ay + (acy - ay) * ak
+        let amx = clamp((nax - ax) / h, -VMAX, VMAX)
+        let amy = clamp((nay - ay) / h, -VMAX, VMAX)
+
+        // The top mallet: the second player's finger, or the computer.
+        let cpu = demo || vsCpu
+        let fb = cpu ? null : fingers.find(f => f.startY <= CY)
+        let lv = demo ? 1 : level
+        let inHalf = py < CY - 4
+        // a shot coming in, still in front of the mallet: where it will cross the mallet's line, off the rails
+        let coming = inHalf && pvy < -260 * S && py > by
+        let tHit = pvy < -1 ? clamp((by - py) / pvy, 0, 2) : 0
+        let span = R - L - 2 * RP
+        let u0 = px + pvx * tHit - L - RP
+        let u1 = ((u0 % (2 * span)) + 2 * span) % (2 * span)
+        let predX = L + RP + (u1 > span ? 2 * span - u1 : u1)
+        // where in the blue goal it aims: somewhere new every second or two
+        let aimX = CX + (hash(floor(gt / 1.6), 7) - 0.5) * GW * 0.8
+        let gl = max(sqrt((aimX - px) * (aimX - px) + (B - py) * (B - py)), 1)
+        let ux = (aimX - px) / gl
+        let uy = (B - py) / gl
+        // above zero when the mallet is on the puck's far side from the blue goal, so it can strike
+        let behind = (px - bx) * ux + (py - by) * uy
+        let bSide = bx >= px ? 1 : -1
+        let pinned = py < T + RM + 4
+        let wobble = sin(gt * 1.3) * 34 * (2 - lv) * S
+        let btx = !cpu ? (fb != null ? fb.x : bx) : (!inHalf ? clamp(CX + (px - CX) * 0.5, CX - GW / 2, CX + GW / 2) + wobble * 0.5 : (coming ? (lv == 0 ? px : predX) + wobble : (pinned ? px : (behind > 0 ? px + ux * 40 * S + wobble * 0.4 : px + bSide * (REACH + 10)))))
+        let bty = !cpu ? (fb != null ? fb.y : by) : (!inHalf ? T + HOME : (coming ? by : (pinned ? T + RM : (behind > 0 ? py + uy * 40 * S : py - REACH - 6))))
+        let bStep = (cpu ? [330, 560, 840][lv] : 3400) * S * h
+        let bcx = clamp(btx, L + RM, R - RM)
+        let bcy = clamp(bty, T + RM, CY - RM)
+        let bd = sqrt((bcx - bx) * (bcx - bx) + (bcy - by) * (bcy - by))
+        let bk = bd > bStep ? bStep / bd : 1
+        let nbx = bx + (bcx - bx) * bk
+        let nby = by + (bcy - by) * bk
+        let bmx = clamp((nbx - bx) / h, -VMAX, VMAX)
+        let bmy = clamp((nby - by) / h, -VMAX, VMAX)
+
+        ax = nax
+        ay = nay
+        bx = nbx
+        by = nby
+
+        if live {
+          let q0x = px + pvx * h
+          let q0y = py + pvy * h
+          // The bottom mallet: the puck is pushed clear of it and takes its speed along the line between them.
+          let e1x = q0x - nax
+          let e1y = q0y - nay
+          let d1 = sqrt(e1x * e1x + e1y * e1y)
+          let hit1 = d1 < REACH
+          let n1x = d1 > 0.01 ? e1x / d1 : 0
+          let n1y = d1 > 0.01 ? e1y / d1 : -1
+          let vn1 = (pvx - amx) * n1x + (pvy - amy) * n1y
+          let j1 = hit1 && vn1 < 0 ? -1.85 * vn1 : 0
+          let q1x = hit1 ? nax + n1x * REACH : q0x
+          let q1y = hit1 ? nay + n1y * REACH : q0y
+          let w1x = pvx + j1 * n1x
+          let w1y = pvy + j1 * n1y
+          // The top mallet.
+          let e2x = q1x - nbx
+          let e2y = q1y - nby
+          let d2 = sqrt(e2x * e2x + e2y * e2y)
+          let hit2 = d2 < REACH
+          let n2x = d2 > 0.01 ? e2x / d2 : 0
+          let n2y = d2 > 0.01 ? e2y / d2 : 1
+          let vn2 = (w1x - bmx) * n2x + (w1y - bmy) * n2y
+          let j2 = hit2 && vn2 < 0 ? -1.85 * vn2 : 0
+          let q2x = hit2 ? nbx + n2x * REACH : q1x
+          let q2y = hit2 ? nby + n2y * REACH : q1y
+          let w2x = w1x + j2 * n2x
+          let w2y = w1y + j2 * n2y
+          // The side rails, and the end rails outside the goal mouths.
+          let q3x = clamp(q2x, L + RP, R - RP)
+          let w3x = q2x < L + RP ? abs(w2x) * 0.92 : (q2x > R - RP ? -abs(w2x) * 0.92 : w2x)
+          let inMouth = abs(q3x - CX) < GW / 2
+          let q3y = inMouth ? q2y : clamp(q2y, T + RP, B - RP)
+          let w3y = inMouth ? w2y : (q2y < T + RP ? abs(w2y) * 0.92 : (q2y > B - RP ? -abs(w2y) * 0.92 : w2y))
+          // The nearest goal post, a point the puck's rim bounces off.
+          let postX = CX + (q3x < CX ? -1 : 1) * GW / 2
+          let postY = q3y < CY ? T : B
+          let ox = q3x - postX
+          let oy = q3y - postY
+          let od = max(sqrt(ox * ox + oy * oy), 0.01)
+          let hitP = inMouth && od < RP
+          let vnP = hitP ? (w3x * ox + w3y * oy) / od : 0
+          let jP = vnP < 0 ? -1.9 * vnP : 0
+          let q4x = hitP ? postX + ox / od * RP : q3x
+          let q4y = hitP ? postY + oy / od * RP : q3y
+          let w4x = w3x + jP * ox / od
+          let w4y = w3y + jP * oy / od
+          // The air lets it glide a long way; nothing goes faster than the eye can follow.
+          let s4 = sqrt(w4x * w4x + w4y * w4y)
+          let keep = (s4 > VMAX ? VMAX / s4 : 1) * pow(0.8, h)
+          let scored = q4y < T - 2 ? 1 : (q4y > B + 2 ? 2 : 0)
+
+          // A hit worth feeling: sparks where they touched, and a tick for a mallet a person holds.
+          let hard1 = hit1 && vn1 < -160 * S
+          let hard2 = hit2 && vn2 < -160 * S
+          if (hard1 || hard2) && gt > hitAt + 0.08 {
+            hitAt = gt
+            let hx = hard1 ? nax + n1x * RM : nbx + n2x * RM
+            let hy = hard1 ? nay + n1y * RM : nby + n2y * RM
+            // a spark's angle and speed come from its number and a0, so both its speeds share them
+            let a0 = random() * 6.283
+            let more = bits + range(7).map(i => {x: hx, y: hy, vx: cos(a0 + i * 2.4) * (60 + hash(i, a0) * 220), vy: sin(a0 + i * 2.4) * (60 + hash(i, a0) * 220), life: 0.25 + hash(a0, i) * 0.3, c: hard1 ? 1 : 2})
+            bits = drop(more, max(0, len(more) - 160))
+            if !demo && (hard1 || !vsCpu) { haptic("light") }
+          }
+
+          if scored == 0 {
+            px = q4x
+            py = q4y
+            pvx = w4x * keep
+            pvy = w4y * keep
+            trail = take([[q4x, q4y]] + trail, 12)
+          }
+          if scored > 0 && demo {
+            // the title's match keeps no score: the puck comes back to the middle
+            px = CX
+            py = CY
+            pvx = (random() - 0.5) * 360 * S
+            pvy = (scored == 1 ? 1 : -1) * 300 * S
+            trail = []
+          }
+          if scored > 0 && !demo {
+            s1 = s1 + (scored == 1 ? 1 : 0)
+            s2 = s2 + (scored == 2 ? 1 : 0)
+            scorer = scored
+            goalAt = gt
+            mode = "goal"
+            px = q4x
+            py = q4y
+            pvx = 0
+            pvy = 0
+            trail = []
+            let gy = scored == 1 ? T : B
+            let g0 = random() * 6.283
+            let burst = bits + range(44).map(i => {x: q4x, y: gy, vx: cos(g0 + i * 2.4) * (80 + hash(i, g0) * 460), vy: abs(sin(g0 + i * 2.4)) * (80 + hash(i, g0) * 460) * (scored == 1 ? 1 : -1), life: 0.5 + hash(g0, i) * 0.8, c: i % 3 == 0 ? 0 : scored})
+            bits = drop(burst, max(0, len(burst) - 160))
+            haptic("strong")
+          }
+        }
+      }
+    }
+  }
+
+  Box {
+    fill: true
+    background: background
+    Canvas {
+      fill: true
+      let sinceGoal = gt - goalAt
+      let flash = mode == "goal" ? clamp(1 - sinceGoal / 1.2, 0, 1) : 0
+      // each half glows in its player's color from the goal out, brighter for a moment when that player scores
+      rect(L, T, R - L, CY - T, fill: radial(CX, T, (B - T) * 0.5, [alpha(C2, 0.16 + (scorer == 2 ? flash * 0.25 : 0)), alpha(C2, 0)]))
+      rect(L, CY, R - L, B - CY, fill: radial(CX, B, (B - T) * 0.5, [alpha(C1, 0.16 + (scorer == 1 ? flash * 0.25 : 0)), alpha(C1, 0)]))
+
+      // the markings: middle line and circle, and a crease around each goal
+      let mark = alpha(foreground, 0.28)
+      line(L, CY, R, CY, stroke: mark, width: 2)
+      circle(CX, CY, GW * 0.42, stroke: mark, width: 2)
+      circle(CX, CY, 4 * S, fill: mark)
+      arc(CX, T, GW * 0.62, 90, 180, stroke: alpha(C2, 0.5), width: 2)
+      arc(CX, B, GW * 0.62, 270, 180, stroke: alpha(C1, 0.5), width: 2)
+
+      // the score, big and faint on each half; the top one faces the player sitting there
+      let n1 = scorer == 1 ? flash : 0
+      let n2 = scorer == 2 ? flash : 0
+      if mode != "title" {
+        text("${s1}", CX, CY + (B - T) * 0.25, size: 120 * S * (1 + n1 * 0.15), align: center, font: FONT, color: alpha(C1, 0.2 + n1 * 0.6))
+        rotate(vsCpu ? 0 : 180, CX, CY - (B - T) * 0.25) {
+          text("${s2}", CX, CY - (B - T) * 0.25, size: 120 * S * (1 + n2 * 0.15), align: center, font: FONT, color: alpha(C2, 0.2 + n2 * 0.6))
+        }
+      }
+
+      // the goals, pockets behind the lines
+      rect(CX - GW / 2, T - GD, GW, GD, fill: alpha(C2, 0.22 + (scorer == 1 ? flash * 0.5 : 0)))
+      rect(CX - GW / 2, B, GW, GD, fill: alpha(C1, 0.22 + (scorer == 2 ? flash * 0.5 : 0)))
+
+      // the rails, a soft wide line under a thin bright one: red around the top half, blue around the bottom
+      let cr = RP
+      for g in [[9, 0.16], [2.5, 1]] {
+        let k2 = alpha(C2, g[1])
+        let k1 = alpha(C1, g[1])
+        path([[CX - GW / 2, T], [CX - GW / 2, T - GD], [CX + GW / 2, T - GD], [CX + GW / 2, T]], stroke: k2, width: g[0])
+        line(CX - GW / 2, T, L + cr, T, stroke: k2, width: g[0], cap: round)
+        line(CX + GW / 2, T, R - cr, T, stroke: k2, width: g[0], cap: round)
+        arc(L + cr, T + cr, cr, 270, 90, stroke: k2, width: g[0])
+        arc(R - cr, T + cr, cr, 0, 90, stroke: k2, width: g[0])
+        line(L, T + cr, L, CY, stroke: k2, width: g[0])
+        line(R, T + cr, R, CY, stroke: k2, width: g[0])
+        path([[CX - GW / 2, B], [CX - GW / 2, B + GD], [CX + GW / 2, B + GD], [CX + GW / 2, B]], stroke: k1, width: g[0])
+        line(CX - GW / 2, B, L + cr, B, stroke: k1, width: g[0], cap: round)
+        line(CX + GW / 2, B, R - cr, B, stroke: k1, width: g[0], cap: round)
+        arc(L + cr, B - cr, cr, 180, 90, stroke: k1, width: g[0])
+        arc(R - cr, B - cr, cr, 90, 90, stroke: k1, width: g[0])
+        line(L, CY, L, B - cr, stroke: k1, width: g[0])
+        line(R, CY, R, B - cr, stroke: k1, width: g[0])
+      }
+
+      // the puck's trail, then the puck: after a goal it sinks into the pocket
+      layer(0.16) {
+        for p, i in trail {
+          if i > 0 {
+            line(trail[i - 1][0], trail[i - 1][1], p[0], p[1], stroke: foreground, width: RP * 1.8 * (1 - i / 13), cap: round)
+          }
+        }
+      }
+      let sink = mode == "goal" ? clamp(1 - sinceGoal / 0.25, 0, 1) : 1
+      if sink > 0 {
+        circle(px, py, RP * sink + 5 * S, fill: alpha(foreground, 0.16))
+        circle(px, py, RP * sink, fill: foreground)
+        circle(px, py, RP * sink * 0.55, stroke: alpha(background, 0.45), width: 2)
+      }
+
+      // the mallets: a rim, a dip and a knob, lit from the top left
+      for m in [[ax, ay, C1], [bx, by, C2]] {
+        circle(m[0], m[1], RM + 7 * S, fill: alpha(m[2], 0.18))
+        circle(m[0], m[1], RM, fill: m[2])
+        circle(m[0], m[1], RM * 0.74, fill: mix(m[2], background, 0.5))
+        circle(m[0], m[1], RM * 0.44, fill: m[2])
+        circle(m[0] - RM * 0.12, m[1] - RM * 0.12, RM * 0.16, fill: alpha(foreground, 0.55))
+      }
+
+      // sparks
+      for p in bits {
+        line(p.x, p.y, p.x - p.vx * 0.03, p.y - p.vy * 0.03, stroke: alpha(p.c == 1 ? C1 : (p.c == 2 ? C2 : foreground), clamp(p.life * 2.2, 0, 1)), width: 2.5, cap: round)
+      }
+
+      // menus sit over a dimmed table
+      if mode == "title" || mode == "over" || paused {
+        rect(0, 0, W, H, fill: alpha(background, mode == "title" ? 0.6 : 0.72))
+      }
+      // the result, each player's the right way up for them
+      if mode == "over" {
+        text(upper(s1 > s2 ? str.win : str.lose), CX, CY + (B - T) * 0.2, size: 30 * S, align: center, font: FONT, color: C1)
+        text("${s1} : ${s2}", CX, CY + (B - T) * 0.2 + 44 * S, size: 22 * S, align: center, font: FONT, color: alpha(foreground, 0.8))
+        if !vsCpu {
+          rotate(180, CX, CY - (B - T) * 0.2) {
+            text(upper(s2 > s1 ? str.win : str.lose), CX, CY - (B - T) * 0.2, size: 30 * S, align: center, font: FONT, color: C2)
+          }
+          rotate(180, CX, CY - (B - T) * 0.2 - 44 * S) {
+            text("${s2} : ${s1}", CX, CY - (B - T) * 0.2 - 44 * S, size: 22 * S, align: center, font: FONT, color: alpha(foreground, 0.8))
+          }
+        }
+      }
+
+      onTouch: fingers = touches
+    }
+
+    if mode == "title" {
+      Column {
+        fill: true
+        align: center
+        justify: center
+        gap: 12
+        padding: [24, TOP + 16, 24, BOT + 16]
+        Text { text: "AIR"; font: FONT; fontSize: 58 * S; color: C2; align: center }
+        Text { text: "HOCKEY"; font: FONT; fontSize: 44 * S; color: C1; align: center }
+        Spacer { height: 22 }
+        Text {
+          text: upper(str.one); width: 252; align: center; padding: [0, 15]; maxLines: 1
+          font: FONT; fontSize: 19; color: background; background: C1
+          onTap: { vsCpu = true; startReq = true; haptic("light") }
+        }
+        Row {
+          gap: 6
+          for name, i in [str.easy, str.normal, str.hard] {
+            Text {
+              text: upper(name); width: 80; align: center; padding: [0, 10]; maxLines: 1
+              font: FONT; fontSize: 11
+              color: level == i ? background : C1
+              background: level == i ? C1 : background
+              border: 2; borderColor: C1
+              onTap: { level = i; haptic("light") }
+            }
+          }
+        }
+        Spacer { height: 8 }
+        Text {
+          text: upper(str.two); width: 252; align: center; padding: [0, 15]; maxLines: 1
+          font: FONT; fontSize: 19; color: background; background: C2
+          onTap: { vsCpu = false; startReq = true; haptic("light") }
+        }
+        Spacer { height: 10 }
+        Text { text: str.first(WIN); color: foreground; align: center }
+        Text { text: wins[level] + losses[level] > 0 ? str.record(wins[level], losses[level]) : ""; style: muted; align: center }
+      }
+    }
+
+    if mode != "title" && (paused || mode == "over") {
+      Column {
+        fill: true
+        align: center
+        justify: center
+        gap: 12
+        if paused && mode != "over" {
+          Text { text: upper(str.paused); font: FONT; fontSize: 26 * S; color: foreground; align: center }
+          Spacer { height: 8 }
+        }
+        Row {
+          gap: 10
+          Text {
+            text: upper(mode == "over" ? str.again : str.resume); width: 150; align: center; padding: [0, 14]; maxLines: 1
+            font: FONT; fontSize: 15; color: background; background: foreground
+            onTap: {
+              if mode == "over" { startReq = true }
+              paused = false
+              haptic("light")
+            }
+          }
+          Text {
+            text: upper(str.menu); width: 110; align: center; padding: [0, 14]; maxLines: 1
+            font: FONT; fontSize: 15; color: foreground; background: background
+            border: 2; borderColor: foreground
+            onTap: { mode = "title"; paused = false; fingers = []; haptic("light") }
+          }
+        }
+      }
+    }
+  }
+}
