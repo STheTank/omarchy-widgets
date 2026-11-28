@@ -2,10 +2,13 @@ name: publish
 
 # Builds index.json from the reviewed widgets on main, faces.json from the faces and apps.json from
 # the apps, and publishes the store to GitHub Pages. Faces and apps have catalogs of their own so
-# launchers from before them never see one.
+# launchers from before them never see one. Also publishes themes.json, the launcher's community theme
+# store, and runs every 6 hours to keep its stars and new themes current.
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "23 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -55,10 +58,19 @@ jobs:
           java -jar tools/owl.jar index .
           java -jar tools/owl.jar index . --faces
           java -jar tools/owl.jar index . --apps
+      - name: Themes
+        # omarchy.org/themes with GitHub's stars, dates and files (tools/themes.py). Only repos whose head
+        # moved since the published copy are read again; when the site or GitHub fails, that copy stays.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsS -o themes-published.json https://simonschubert.github.io/omarchy-widgets/themes.json || rm -f themes-published.json
+          python3 tools/themes.py themes.json --previous themes-published.json || { [ -f themes-published.json ] && cp themes-published.json themes.json; } || true
       - name: Site
         run: |
           mkdir _site
           cp -r index.json faces.json apps.json announcements.json widgets faces apps w _site/
+          if [ -f themes.json ]; then cp themes.json _site/; fi
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
