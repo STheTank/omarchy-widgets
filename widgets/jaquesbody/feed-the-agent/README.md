@@ -6,12 +6,12 @@ written into a folder of your own, and your agent reads and writes those files
 to organize, prioritize and remind you. No model runs on the phone.
 
 The 6×1 tile is a text field with a `feed it` button, a mic, a priority tag and
-— once a computer is set — a `sort` button. Tap it for the full screen.
+— once a computer is set — a `sort` button. Tap the gear for the full screen.
 
 ## What it does
 
-- **Capture**: type a thought, or tap the mic and say it. The phone's own
-  recognizer does the words; nothing leaves the phone.
+- **Capture**: type a thought, or tap the mic and say it. Android's own speech
+  recogniser does the words; the widget sends them nowhere.
 - **Write it down**: the line goes into your note, under the section line you
   chose, at the top or the bottom of that list, with a `{date}` or
   `{date:time}` prefix if you want one.

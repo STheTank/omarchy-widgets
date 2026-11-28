@@ -23,7 +23,7 @@ widget "feed the agent" {
   meta {
     owl: 19
     description: "Feed it a note, an idea, a todo or a bug fix. It connects to your agent and your file system: set the agent up to read and write your folder and named files, and it organizes and prioritizes for you."
-    version: "2.7"
+    version: "2.8"
     license: "MIT"
     category: "productivity"
   }
